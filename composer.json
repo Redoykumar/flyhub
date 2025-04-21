@@ -1,0 +1,22 @@
+{
+    "name": "redoy/flyhub",
+    "description": "Flight API wrapper for Travelport, Amadeus, and others",
+    "type": "library",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Redoy\\FlyHub\\": "src/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Redoy\\FlyHub\\FlyHubServiceProvider"
+            ],
+            "aliases": {
+                "FlyHub": "Redoy\\FlyHub\\Facades\\FlyHub"
+            }
+        }
+    },
+    "require": {}
+}
