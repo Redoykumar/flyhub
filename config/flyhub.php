@@ -20,7 +20,10 @@ return [
             'client_id' => env('TRAVELPORT_CLIENT_ID'),
             'client_secret' => env('TRAVELPORT_CLIENT_SECRET'),
             'access_group' => env('TRAVELPORT_ACCESSGROUP'),
+            
+            'content_source_list' => explode(',', env('TRAVELPORT_CONTENT_SOURCES', 'NDC')),
         ],
+
 
         'amadeus' => [
             'class' => \Redoy\FlyHub\Providers\Amadeus\AmadeusClient::class,

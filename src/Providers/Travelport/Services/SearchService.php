@@ -27,44 +27,28 @@ class SearchService implements SearchServiceInterface
      */
     public function search(SearchRequestDTO $request): SearchResponseDTO
     {
-        try {
-            // Generate payload using the builder
-            $payload = $this->buildFromSearchRequest($request);
 
-            // Log the payload for debugging purposes
-            Log::info('Travelport API request payload', $payload);
+        // Generate payload using the builder
+        $payload = $this->buildFromSearchRequest($request);
 
- 
 
-            // Send the request to Travelport API with updated base path and headers
-            $response = $this->client
-                ->request('POST', '/catalog/search/catalogproductofferings')  // Updated URL with base path
-                ->withBody($payload)     // ✅ Corrected method name
-                ->send();                // ✅ You should also replace `.get()` with `.send()` to match the client
+        // Send the request to Travelport API with updated base path and headers
+        $response = $this->client
+            ->request('POST', '/catalog/search/catalogproductofferings')  // Updated URL with base path
+            ->withBody($payload)     // ✅ Corrected method name
+            ->send();
+        // Transform the response data using SearchTransformer
+        $transformedData = SearchTransformer::transform($response->json());
+        dd($transformedData);
+        // Return the response as a DTO (use transformed data)
+        return new SearchResponseDTO([
+            [
+                'provider' => 'Travelport',
+                'flights' => $transformedData['flights'],
+            ]
+        ]);
 
-            // Log the response for debugging purposes
-            Log::info('Travelport API response', $response->json());
 
-            // Check if the response is valid
-            if ($response->status() === 404) {
-                throw new Exception('404 Not Found: Check the API endpoint and credentials.');
-            }
-
-            if (!$response->successful()) {
-                throw new Exception('Failed to fetch data from Travelport API.');
-            }
-
-            // Transform the response data using SearchTransformer
-            $transformedData = SearchTransformer::transform($response->json());
-
-            // Return the response as a DTO (use transformed data)
-            return new SearchResponseDTO([$transformedData]);
-
-        } catch (Exception $e) {
-            // Handle any exceptions that occurred during the request
-            Log::error('Error occurred while searching for flights', ['error' => $e->getMessage()]);
-            throw new Exception('Error occurred while searching for flights: ' . $e->getMessage());
-        }
     }
 
 
@@ -83,7 +67,7 @@ class SearchService implements SearchServiceInterface
                     '@type' => 'CatalogProductOfferingsRequestAir',
                     'offersPerPage' => 5,
                     'maxNumberOfUpsellsToReturn' => 0,
-                    'contentSourceList' => ['NDC'],  // Content source (e.g., "GDS")
+                    'contentSourceList' => config('flyhub.providers.travelport.content_source_list'),  // Content source (e.g., "GDS")
                     'PassengerCriteria' => [
                         [
                             '@type' => 'PassengerCriteria',
