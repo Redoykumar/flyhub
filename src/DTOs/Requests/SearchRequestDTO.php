@@ -52,4 +52,55 @@ class SearchRequestDTO
         $this->fare_type = $data['fare_type'] ?? null;
         $this->price_range = $data['price_range'] ?? ['min' => 0, 'max' => PHP_INT_MAX];
     }
+
+    // Getter methods
+    public function getTripType()
+    {
+        return $this->trip_type;
+    }
+
+    public function getPassengers()
+    {
+        return $this->passengers;
+    }
+
+    public function getOrigin()
+    {
+        return $this->origin;
+    }
+
+    public function getDestination()
+    {
+        return $this->destination;
+    }
+
+    public function getDepartureDate()
+    {
+        return $this->departure_date;
+    }
+
+    public function getReturnDate()
+    {
+        return $this->return_date;
+    }
+
+    public function getPreferredAirline()
+    {
+        return $this->preferred_airline;
+    }
+
+    public function getStops()
+    {
+        return $this->stops;
+    }
+
+    public function getFareType()
+    {
+        return $this->fare_type;
+    }
+
+    public function getPriceRange()
+    {
+        return $this->price_range;
+    }
 }

@@ -6,15 +6,29 @@ return [
     'providers' => [
         'travelport' => [
             'class' => \Redoy\FlyHub\Providers\Travelport\TravelportClient::class,
-            'api_key' => env('TRAVELPORT_API_KEY'),
-            'endpoint' => env('TRAVELPORT_ENDPOINT'),
+            'environment' => env('TRAVELPORT_ENV', 'preproduction'), // preproduction | production
+            'base_urls' => [
+                'preproduction' => 'https://api.pp.travelport.com/11/air',
+                'production' => 'https://api.travelport.com/11/air',
+            ],
+            'auth_urls' => [
+                'preproduction' => 'https://oauth.pp.travelport.com/oauth/oauth20/token',
+                'production' => 'https://oauth.travelport.com/oauth/oauth20/token',
+            ],
+            'username' => env('TRAVELPORT_USERNAME'),
+            'password' => env('TRAVELPORT_PASSWORD'),
+            'client_id' => env('TRAVELPORT_CLIENT_ID'),
+            'client_secret' => env('TRAVELPORT_CLIENT_SECRET'),
+            'access_group' => env('TRAVELPORT_ACCESSGROUP'),
         ],
+
         'amadeus' => [
             'class' => \Redoy\FlyHub\Providers\Amadeus\AmadeusClient::class,
             'api_key' => env('AMADEUS_API_KEY'),
             'endpoint' => env('AMADEUS_ENDPOINT'),
         ],
     ],
+
     'pricing' => [
         'source' => env('FLIGHT_PRICING_SOURCE', 'config'), // 'config' or 'database'
         'rules' => [
