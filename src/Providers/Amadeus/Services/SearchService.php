@@ -2,23 +2,25 @@
 
 namespace Redoy\FlyHub\Providers\Amadeus\Services;
 
+use Redoy\FlyHub\Contracts\Services\SearchServiceInterface;
+use Redoy\FlyHub\DTOs\Requests\SearchRequestDTO;
+use Redoy\FlyHub\DTOs\Responses\SearchResponseDTO;
 use Redoy\FlyHub\Providers\Amadeus\AmadeusClient;
 
-class SearchService
+class SearchService implements SearchServiceInterface
 {
-    // Reference to Amadeus client
     protected $client;
 
-    // Constructor injects AmadeusClient
     public function __construct(AmadeusClient $client)
     {
         $this->client = $client;
     }
 
-    // Mock search implementation (replace with real API call later)
-    public function search($request)
+    // Search for flights and return standardized response
+    public function search(SearchRequestDTO $request): SearchResponseDTO
     {
-        return [
+        // Mock data (replace with real API call later)
+        $data = [
             'provider' => 'Amadeus',
             'flights' => [
                 [
@@ -27,6 +29,7 @@ class SearchService
                     'airline' => 'Lufthansa',
                     'price' => 350,
                     'stops' => 1,
+                    'fare_type' => 'refundable'
                 ],
                 [
                     'departure' => '2025-05-01 15:00',
@@ -34,8 +37,11 @@ class SearchService
                     'airline' => 'Air France',
                     'price' => 400,
                     'stops' => 0,
+                    'fare_type' => 'non-refundable'
                 ],
             ],
         ];
+
+        return new SearchResponseDTO([$data]);
     }
 }

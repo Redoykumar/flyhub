@@ -2,23 +2,25 @@
 
 namespace Redoy\FlyHub\Providers\Travelport\Services;
 
+use Redoy\FlyHub\Contracts\Services\SearchServiceInterface;
+use Redoy\FlyHub\DTOs\Requests\SearchRequestDTO;
+use Redoy\FlyHub\DTOs\Responses\SearchResponseDTO;
 use Redoy\FlyHub\Providers\Travelport\TravelportClient;
 
-class SearchService
+class SearchService implements SearchServiceInterface
 {
-    // Reference to Travelport client
     protected $client;
 
-    // Constructor injects TravelportClient
     public function __construct(TravelportClient $client)
     {
         $this->client = $client;
     }
 
-    // Mock search implementation (replace with real API call later)
-    public function search($request)
+    // Search for flights and return standardized response
+    public function search(SearchRequestDTO $request): SearchResponseDTO
     {
-        return [
+        // Mock data (replace with real API call later)
+        $data = [
             'provider' => 'Travelport',
             'flights' => [
                 [
@@ -27,8 +29,11 @@ class SearchService
                     'airline' => 'Delta',
                     'price' => 300,
                     'stops' => 0,
+                    'fare_type' => 'non-refundable'
                 ],
             ],
         ];
+
+        return new SearchResponseDTO([$data]);
     }
 }

@@ -2,14 +2,27 @@
 
 namespace Redoy\FlyHub\DTOs\Responses;
 
-use Redoy\FlyHub\DTOs\Shared\FlightSegmentDTO;
-
 class SearchResponseDTO
 {
-    public $flights;
+    public $status;
+    public $data;
+    public $errors;
 
-    public function __construct(array $flights)
+    // Constructor sets response data
+    public function __construct(array $data)
     {
-        $this->flights = $flights; // Array of FlightSegmentDTO objects
+        $this->status = 'success';
+        $this->data = $data;
+        $this->errors = [];
+    }
+
+    // Convert to array for JSON response
+    public function toArray()
+    {
+        return [
+            'status' => $this->status,
+            'data' => $this->data,
+            'errors' => $this->errors
+        ];
     }
 }

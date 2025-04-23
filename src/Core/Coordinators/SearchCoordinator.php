@@ -3,61 +3,69 @@
 namespace Redoy\FlyHub\Core\Coordinators;
 
 use Redoy\FlyHub\Core\FlyHubManager;
+use Redoy\FlyHub\DTOs\Responses\SearchResponseDTO;
+use Redoy\FlyHub\Filters\PriceFilter;
+use Redoy\FlyHub\Sorters\PriceSorter;
+use Redoy\FlyHub\Markup\MarkupManager;
 
 class SearchCoordinator
 {
-    // Reference to FlyHubManager instance
     protected $manager;
 
-    // Constructor injects FlyHubManager
     public function __construct(FlyHubManager $manager)
     {
         $this->manager = $manager;
     }
 
-    // Initiates a search and returns a fluent chainable object
-    public function search($request)
+    public function search($dto)
     {
-        return new class ($this->manager, $request) {
+        return new class ($this->manager, $dto) {
             protected $manager;
-            protected $request;
+            protected $dto;
+            protected $filters = [];
+            protected $sorters = [];
 
-            // Constructor stores manager and request
-            public function __construct($manager, $request)
+            public function __construct($manager, $dto)
             {
                 $this->manager = $manager;
-                $this->request = $request;
+                $this->dto = $dto;
             }
 
-            // Placeholder for filter logic
             public function filters()
             {
+                $this->filters[] = new PriceFilter($this->dto->price_range ?? ['min' => 0, 'max' => PHP_INT_MAX]);
                 return $this;
             }
 
-            // Placeholder for sort logic
             public function sort()
             {
+                $this->sorters[] = new PriceSorter();
                 return $this;
             }
 
-            // Executes the search and retrieves results
             public function get()
             {
-                // Create provider client instance (e.g., TravelportClient or AmadeusClient)
-                $client = new ($this->manager->getProviderClass())($this->manager->getConfig());
-                // Extract provider name (e.g., 'Travelport' or 'Amadeus')
-                $providerNamespace = explode('\\', $this->manager->getProviderClass())[3];
-                // Construct correct SearchService namespace
-                $searchServiceClass = "Redoy\\FlyHub\\Providers\\{$providerNamespace}\\Services\\SearchService";
-                // Instantiate SearchService with client
-                $searchService = new $searchServiceClass($client);
-                // Call search with request and store results
-                $results = $searchService->search($this->request);
-                // Save results to manager
+                $results = [];
+                $markupManager = new MarkupManager();
+                $providers = config('flyhub.providers', []);
+
+                foreach ($providers as $providerName => $providerConfig) {
+                    $client = new ($providerConfig['class'])($providerConfig);
+                    $searchServiceClass = "Redoy\\FlyHub\\Providers\\" . ucfirst($providerName) . "\\Services\\SearchService";
+                    $searchService = new $searchServiceClass($client);
+                    $providerResponse = $searchService->search($this->dto);
+                    $providerResults = $providerResponse->data[0];
+                    $providerResults = $markupManager->applyMarkupToFlights($providerResults, $providerName);
+                    foreach ($this->filters as $filter) {
+                        $providerResults['flights'] = $filter->apply($providerResults['flights']);
+                    }
+                    foreach ($this->sorters as $sorter) {
+                        $providerResults['flights'] = $sorter->apply($providerResults['flights']);
+                    }
+                    $results[] = $providerResults;
+                }
                 $this->manager->setResults($results);
-                // Return results
-                return $this->manager->getResults();
+                return (new SearchResponseDTO($results))->toArray();
             }
         };
     }

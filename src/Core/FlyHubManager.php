@@ -3,24 +3,21 @@
 namespace Redoy\FlyHub\Core;
 
 use Redoy\FlyHub\Core\Coordinators\SearchCoordinator;
+use Redoy\FlyHub\DTOs\Requests\SearchRequestDTO;
+use Illuminate\Http\Request;
 
 class FlyHubManager
 {
-    // Stores the provider class (e.g., TravelportClient or AmadeusClient)
     protected $providerClass;
-    // Stores provider configuration from flyhub.php
     protected $config;
-    // Stores search results from providers
     protected $results;
 
-    // Constructor initializes with a provider class and config, or defaults
     public function __construct($providerClass = null, array $config = [])
     {
         $this->providerClass = $providerClass ?: $this->getDefaultProviderClass();
         $this->config = $config ?: config('flyhub.providers.' . config('flyhub.default_provider'));
     }
 
-    // Sets a specific provider (e.g., 'travelport' or 'amadeus')
     public function provider($providerName)
     {
         $config = config("flyhub.providers.{$providerName}");
@@ -29,43 +26,46 @@ class FlyHubManager
         return $this;
     }
 
-    // Initiates a search by delegating to SearchCoordinator
-    public function search($request)
+    public function search($input)
     {
+        $dto = $input instanceof SearchRequestDTO
+            ? $input
+            : new SearchRequestDTO(
+                $input instanceof Request ? $input->all() : (is_array($input) ? $input : [])
+            );
         $coordinator = new SearchCoordinator($this);
-        return $coordinator->search($request);
+        return $coordinator->search($dto);
     }
 
-    // Getter for provider class
     public function getProviderClass()
     {
         return $this->providerClass;
     }
 
-    // Getter for config
     public function getConfig()
     {
         return $this->config;
     }
 
-    // Setter for results
     public function setResults($results)
     {
         $this->results = $results;
         return $this;
     }
 
-    // Getter for results
     public function getResults()
     {
-        return $this->results ?? [];
+        return [
+            'status' => 'success',
+            'data' => $this->results ?? [],
+            'errors' => []
+        ];
     }
 
-    // Fluent API methods for chaining
     public function orginalPrice()
     {
         return $this;
-    } // Note: Typo 'orginal' from your route; consider fixing to 'originalPrice'
+    }
     public function price()
     {
         return $this;
@@ -139,7 +139,6 @@ class FlyHubManager
         return $this->getResults();
     }
 
-    // Retrieves default provider class from config
     protected function getDefaultProviderClass(): string
     {
         return config('flyhub.providers.' . config('flyhub.default_provider') . '.class');
