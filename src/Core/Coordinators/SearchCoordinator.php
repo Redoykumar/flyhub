@@ -56,12 +56,12 @@ class SearchCoordinator
                     $providerResponse = $searchService->search($this->dto);
                     $providerResults = $providerResponse->data[0];
                     $providerResults = $markupManager->applyMarkupToFlights($providerResults, $providerName);
-                    foreach ($this->filters as $filter) {
-                        $providerResults['flights'] = $filter->apply($providerResults['flights']);
-                    }
-                    foreach ($this->sorters as $sorter) {
-                        $providerResults['flights'] = $sorter->apply($providerResults['flights']);
-                    }
+                    // foreach ($this->filters as $filter) {
+                    //     $providerResults['flights'] = $filter->apply($providerResults['flights']);
+                    // }
+                    // foreach ($this->sorters as $sorter) {
+                    //     $providerResults['flights'] = $sorter->apply($providerResults['flights']);
+                    // }
                     $results[] = $providerResults;
                 }
                 $this->manager->setResults($results);

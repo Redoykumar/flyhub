@@ -2,36 +2,90 @@
 
 namespace Redoy\FlyHub\Markup;
 
+use Illuminate\Support\Facades\Log;
+
 class MarkupManager
 {
     // Apply markup to a single flight
     public function applyMarkup(array $flight, string $provider): array
     {
         $pricingSource = config('flyhub.pricing.source', 'config');
+        $targetCurrency = config('flyhub.pricing.currency', 'USD');
         $fareType = $this->normalizeFareType($flight['fare_type'] ?? 'economy');
 
         // Get pricing rules
         $rules = $this->getPricingRules($pricingSource, $fareType, $provider);
 
-        // Store original price
-        $flight['original_price'] = $flight['price'];
-        $price = $flight['price'];
+        // Validate price structure
+        $price = 0.0;
+        $basePrice = 0.0;
+        $taxPrice = 0.0;
+        $currentCurrency = 'USD';
+
+        if (isset($flight['price_scalar']) && is_numeric($flight['price_scalar'])) {
+            $price = (float) $flight['price_scalar'];
+            $basePrice = $price; // Assume base = total if only scalar provided
+            $flight['price'] = $flight['price'] ?? [
+                'amount' => $price,
+                'currency' => 'USD',
+                'breakdown' => ['base' => $price, 'tax' => 0.0],
+                'currency_conversion' => [],
+            ];
+        } elseif (isset($flight['price']) && is_array($flight['price']) && isset($flight['price']['amount']) && is_numeric($flight['price']['amount'])) {
+            $price = (float) $flight['price']['amount'];
+            $basePrice = (float) ($flight['price']['breakdown']['base'] ?? $price);
+            $taxPrice = (float) ($flight['price']['breakdown']['tax'] ?? 0.0);
+            $currentCurrency = $flight['price']['currency'] ?? 'USD';
+        } else {
+            Log::warning('Invalid price structure in flight data', ['flight' => $flight]);
+            $flight['price'] = [
+                'amount' => 0.0,
+                'currency' => 'USD',
+                'breakdown' => ['base' => 0.0, 'tax' => 0.0],
+                'currency_conversion' => [],
+            ];
+        }
+
+        // Handle currency conversion if needed
+        if ($currentCurrency !== $targetCurrency) {
+            $conversionRate = $this->getConversionRate($currentCurrency, $targetCurrency);
+            $price *= $conversionRate;
+            $basePrice *= $conversionRate;
+            $taxPrice *= $conversionRate;
+            $flight['price']['currency_conversion'] = [
+                'from' => $currentCurrency,
+                'to' => $targetCurrency,
+                'rate' => $conversionRate,
+            ];
+            $flight['price']['currency'] = $targetCurrency;
+        }
+
+        // Store original price in breakdown
+        $flight['price']['breakdown']['original_price'] = round($price, 2);
 
         // Apply fare class markup and fixed fee
-        $fareMarkup = ($price * ($rules['fare']['markup_percentage'] / 100)) + $rules['fare']['fixed_fee'];
-        $price += $fareMarkup;
+        $fareMarkup = ($basePrice * ($rules['fare']['markup_percentage'] / 100)) + $rules['fare']['fixed_fee'];
+        $basePrice += $fareMarkup;
 
         // Apply provider-specific markup and fixed fee
-        $providerMarkup = ($price * ($rules['provider']['markup_percentage'] / 100)) + $rules['provider']['fixed_fee'];
-        $price += $providerMarkup;
+        $providerMarkup = ($basePrice * ($rules['provider']['markup_percentage'] / 100)) + $rules['provider']['fixed_fee'];
+        $basePrice += $providerMarkup;
 
         // Apply discount
-        $discount = $price * ($rules['provider']['discount_percentage'] / 100);
-        $price -= $discount;
+        $discount = ($basePrice * ($rules['provider']['discount_percentage'] / 100));
+        $basePrice -= $discount;
 
-        // Ensure price is not negative
-        $flight['final_price'] = max(0, round($price, 2));
-        $flight['currency'] = config('flyhub.pricing.currency', 'USD');
+        // Ensure base price is not negative
+        $basePrice = max(0, round($basePrice, 2));
+
+        // Update price structure
+        $flight['price']['amount'] = $basePrice + $taxPrice;
+        $flight['price']['breakdown']['base'] = $basePrice;
+        $flight['price']['breakdown']['tax'] = $taxPrice;
+        $flight['price']['breakdown']['final_price'] = round($flight['price']['amount'], 2);
+
+        // Set scalar price for backward compatibility
+        $flight['price_scalar'] = $flight['price']['amount'];
 
         return $flight;
     }
@@ -49,8 +103,7 @@ class MarkupManager
     protected function getPricingRules(string $source, string $fareType, string $provider): array
     {
         if ($source === 'database') {
-            // Placeholder for database logic (e.g., query a PricingRule model)
-            // Return default config rules for now
+            // Placeholder for database logic
             return $this->getConfigRules($fareType, $provider);
         }
 
@@ -78,6 +131,18 @@ class MarkupManager
         ];
     }
 
+    // Get currency conversion rate
+    protected function getConversionRate(string $from, string $to): float
+    {
+        $rates = config('flyhub.pricing.conversion_rates', [
+            'AUD' => ['USD' => 0.67, 'EUR' => 0.62],
+            'USD' => ['EUR' => 0.92, 'AUD' => 1.49],
+            'EUR' => ['USD' => 1.09, 'AUD' => 1.61],
+        ]);
+
+        return $rates[$from][$to] ?? 1.0; // Default to no conversion
+    }
+
     // Normalize fare type to match config keys
     protected function normalizeFareType(string $fareType): string
     {
@@ -89,6 +154,6 @@ class MarkupManager
         } elseif (str_contains($fareType, 'first')) {
             return 'first_class';
         }
-        return 'economy'; // Default
+        return 'economy';
     }
 }

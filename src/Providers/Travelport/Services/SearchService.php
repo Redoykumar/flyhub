@@ -27,7 +27,99 @@ class SearchService implements SearchServiceInterface
      */
     public function search(SearchRequestDTO $request): SearchResponseDTO
     {
+        // $data = [
+        //     'provider' => 'Travelport',
+        //     'flights' => [
+        //         [
+        //             'id' => 'FLT_TRP_20250424_001',
+        //             'provider' => 'travelport',
+        //             'fare_type' => 'ECONOMY',
+        //             'total_duration' => 'PT8H30M',
+        //             'stops' => 1,
+        //             'price' => [
+        //                 'amount' => 480.5,
+        //                 'currency' => 'USD',
+        //                 'breakdown' => [
+        //                     'base' => 420.0,
+        //                     'tax' => 60.5,
+        //                 ],
+        //                 'currency_conversion' => [
+        //                     'from' => 'USD',
+        //                     'to' => 'EUR',
+        //                     'rate' => 0.92,
+        //                 ],
+        //             ],
+        //             'segments' => [
+        //                 [
+        //                     'segment_number' => 1,
+        //                     'from' => [
+        //                         'airport' => 'DAC',
+        //                         'city' => 'Dhaka',
+        //                         'country' => 'BD',
+        //                         'time' => '2025-06-01T09:00:00Z',
+        //                     ],
+        //                     'to' => [
+        //                         'airport' => 'DXB',
+        //                         'city' => 'Dubai',
+        //                         'country' => 'AE',
+        //                         'time' => '2025-06-01T13:30:00Z',
+        //                     ],
+        //                     'flight_number' => 'EK583',
+        //                     'airline' => [
+        //                         'code' => 'EK',
+        //                         'name' => 'Emirates',
+        //                         'icon' => 'https://cdn.example.com/airlines/EK.png',
+        //                     ],
+        //                     'aircraft' => 'Boeing 777',
+        //                     'duration' => 'PT4H30M',
+        //                     'flight_class' => 'Economy',
+        //                     'cabin_type' => 'Standard',
+        //                     'layover' => [
+        //                         'duration' => 'PT1H30M',
+        //                         'location' => 'Doha',
+        //                     ],
+        //                 ],
+        //             ],
+        //             'conditions' => [
+        //                 'is_refundable' => true,
+        //                 'baggage' => [
+        //                     'checked' => '30kg',
+        //                     'carry_on' => '7kg',
+        //                 ],
+        //                 'terms_and_conditions' => [
+        //                     'cancellation_policy' => 'https://example.com/policies/cancel',
+        //                     'change_policy' => 'https://example.com/policies/change',
+        //                 ],
+        //             ],
+        //             'in_flight_amenities' => [
+        //                 'wifi' => true,
+        //                 'meal' => 'Vegetarian',
+        //                 'entertainment' => true,
+        //             ],
+        //             'availability' => [
+        //                 'seats_remaining' => 12,
+        //                 'quota' => 'Limited',
+        //             ],
+        //             'airline_contact' => [
+        //                 'phone' => '+123456789',
+        //                 'email' => 'support@emirates.com',
+        //             ],
+        //             'booking_token' => 'ABC123_SECURETOKEN',
+        //         ],
+        //     ],
+        //     'meta' => [
+        //         'search_id' => 'SRCH_20250424_0001',
+        //         'origin' => 'DAC',
+        //         'destination' => 'DXB',
+        //         'departure_date' => '2025-06-01',
+        //         'round_trip' => false,
+        //         'currency' => 'USD',
+        //         'total_results' => 12,
+        //     ],
+        // ];
 
+
+        // return new SearchResponseDTO([$data]);
         // Generate payload using the builder
         $payload = $this->buildFromSearchRequest($request);
 
@@ -39,12 +131,11 @@ class SearchService implements SearchServiceInterface
             ->send();
         // Transform the response data using SearchTransformer
         $transformedData = SearchTransformer::transform($response->json());
-        dd($transformedData);
-        // Return the response as a DTO (use transformed data)
         return new SearchResponseDTO([
             [
-                'provider' => 'Travelport',
+                'provider' => $transformedData['provider'],
                 'flights' => $transformedData['flights'],
+                'meta' => $transformedData['meta'],
             ]
         ]);
 
