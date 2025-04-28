@@ -130,7 +130,8 @@ class SearchService implements SearchServiceInterface
             ->withBody($payload)     // ✅ Corrected method name
             ->send();
         // Transform the response data using SearchTransformer
-        $transformedData = SearchTransformer::transform($response->json());
+        $transformedData = (new SearchTransformer($response->json(), $request))->transform();
+
         return new SearchResponseDTO([
             [
                 'provider' => $transformedData['provider'],
@@ -152,34 +153,51 @@ class SearchService implements SearchServiceInterface
      */
     public function buildFromSearchRequest(SearchRequestDTO $request): array
     {
+        $searchCriteriaFlight = [
+            [
+                '@type' => 'SearchCriteriaFlight',
+                'departureDate' => $request->getDepartureDate(),
+                'From' => [
+                    'value' => $request->getOrigin(),
+                ],
+                'To' => [
+                    'value' => $request->getDestination(),
+                ]
+            ]
+        ];
+
+        // If it's a round trip, add the return flight
+        if ($request->getTripType()=='round-trip') {
+            $searchCriteriaFlight[] = [
+                '@type' => 'SearchCriteriaFlight',
+                'departureDate' => $request->getReturnDate(), // Make sure getReturnDate() exists
+                'From' => [
+                    'value' => $request->getDestination(),
+                ],
+                'To' => [
+                    'value' => $request->getOrigin(),
+                ]
+            ];
+        }
+
         return [
             'CatalogProductOfferingsQueryRequest' => [
                 'CatalogProductOfferingsRequest' => [
                     '@type' => 'CatalogProductOfferingsRequestAir',
                     'offersPerPage' => 5,
-                    'maxNumberOfUpsellsToReturn' => 0,
-                    'contentSourceList' => config('flyhub.providers.travelport.content_source_list'),  // Content source (e.g., "GDS")
+                    'maxNumberOfUpsellsToReturn' => 3,
+                    'contentSourceList' => config('flyhub.providers.travelport.content_source_list'),
                     'PassengerCriteria' => [
                         [
                             '@type' => 'PassengerCriteria',
-                            'number' => $request->getPassengers()['adults'],  // Assuming adults
-                            'passengerTypeCode' => 'ADT',  // For adults, use "ADT"                        
+                            'number' => $request->getPassengers()['adults'],
+                            'passengerTypeCode' => 'ADT',
                         ]
                     ],
-                    'SearchCriteriaFlight' => [
-                        [
-                            '@type' => 'SearchCriteriaFlight',
-                            'departureDate' => $request->getDepartureDate(),
-                            'From' => [
-                                'value' => $request->getOrigin(),
-                            ],
-                            'To' => [
-                                'value' => $request->getDestination(),
-                            ]
-                        ]
-                    ],
+                    'SearchCriteriaFlight' => $searchCriteriaFlight,
                 ]
             ]
         ];
     }
+
 }
