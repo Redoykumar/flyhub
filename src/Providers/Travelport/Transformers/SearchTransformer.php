@@ -13,6 +13,7 @@ class SearchTransformer
     protected array $brand;
     protected array $offering;
     protected array $modOffering;
+    protected array $CombinabilityCodeByOffer;
 
     public function __construct(array $data, SearchRequestDTO $request)
     {
@@ -48,8 +49,27 @@ class SearchTransformer
     public function transform(): array
     {
         // dd($this->data);
-        dd($this->getCatalogProductOffering($this->data));
+        // dd($this->getCatalogProductOffering($this->data));
+        foreach ($this->getCatalogProductOffering($this->data)[1][1] as $key => $value) {
+            $this->getProductByCombinabilityCode([$key=>$value]);
+        }
+        dd($this->CombinabilityCodeByOffer);
     }
+    function getProductByCombinabilityCode($codeWithData)
+    {
+
+        $offer=[];
+        foreach ($this->CombinabilityCodeByOffer as $key => $value) {
+            $offer[$key] = $value[array_key_first($codeWithData)];
+        }
+        $this->getCombinSequence($offer);
+    }
+
+    function getCombinSequence($offer)
+    {
+        // $this->getCombinSequence($offer);
+    }
+
     function getCatalogProductOffering($data)
     {
         $offering = $data['CatalogProductOfferingsResponse']['CatalogProductOfferings']['CatalogProductOffering'];
@@ -67,6 +87,7 @@ class SearchTransformer
                 }
             }
         }
+        $this->CombinabilityCodeByOffer=$CombinabilityCodeByOffer;
         return [$offerListbysequence, $CombinabilityCodeByOffer];
 
 
