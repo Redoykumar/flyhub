@@ -51,23 +51,35 @@ class SearchTransformer
         // dd($this->data);
         // dd($this->getCatalogProductOffering($this->data));
         foreach ($this->getCatalogProductOffering($this->data)[1][1] as $key => $value) {
-            $this->getProductByCombinabilityCode([$key=>$value]);
+            $this->getProductByCombinabilityCode([$key => $value]);
+            break;
         }
         dd($this->CombinabilityCodeByOffer);
     }
     function getProductByCombinabilityCode($codeWithData)
     {
 
-        $offer=[];
-        foreach ($this->CombinabilityCodeByOffer as $key => $value) {
-            $offer[$key] = $value[array_key_first($codeWithData)];
+        foreach ($codeWithData as $key => $value) {
+            dump($this->getCombinSequence(0, array_key_first($codeWithData), 1));
         }
-        $this->getCombinSequence($offer);
     }
 
-    function getCombinSequence($offer)
+    function getCombinSequence($offer, $key, $s)
     {
-        // $this->getCombinSequence($offer);
+        if (!isset($this->CombinabilityCodeByOffer[$s])) {
+            return [];
+        }
+
+        // dump($this->CombinabilityCodeByOffer[$s][$key][$offer]);
+        dump(['sequence' => $s, "key" => $key, "index" => $offer]);
+        if (isset($this->CombinabilityCodeByOffer[$s][$key][$offer+1])) {
+             $this->getCombinSequence($offer+1, $key, $s);
+
+        }
+        $this->getCombinSequence(0, $key, $s + 1);
+  
+
+        
     }
 
     function getCatalogProductOffering($data)
@@ -79,15 +91,15 @@ class SearchTransformer
             foreach ($cpor['ProductBrandOptions'] as $key => $pbo) {
                 foreach ($pbo['ProductBrandOffering'] as $key => $pboff) {
                     $pboff['sequence'] = $cpor['sequence'];
-                    $offerListbysequence[$cpor['sequence']][]= $pboff;
+                    $offerListbysequence[$cpor['sequence']][] = $pboff;
                     foreach ($pboff['CombinabilityCode'] as $key => $value) {
-                        $pboff['p']= $pboff['Product'][0]['productRef'];
+                        $pboff['p'] = $pboff['Product'][0]['productRef'];
                         $CombinabilityCodeByOffer[$pboff['sequence']][$value][] = $pboff;
                     }
                 }
             }
         }
-        $this->CombinabilityCodeByOffer=$CombinabilityCodeByOffer;
+        $this->CombinabilityCodeByOffer = $CombinabilityCodeByOffer;
         return [$offerListbysequence, $CombinabilityCodeByOffer];
 
 
