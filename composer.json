@@ -6,7 +6,10 @@
     "autoload": {
         "psr-4": {
             "Redoy\\FlyHub\\": "src/"
-        }
+        },
+        "files": [
+            "app/Helpers/SimplifyNumber.php"
+        ]
     },
     "extra": {
         "laravel": {
