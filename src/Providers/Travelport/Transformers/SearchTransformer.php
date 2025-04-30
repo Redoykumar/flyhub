@@ -15,10 +15,11 @@ class SearchTransformer
     protected array $offerings = [];
     protected array $combinabilityBySequence = [];
     protected array $combinabilityByCode = [];
+    protected array $identifier = [];
 
     public function __construct(array $responseData, $request)
     {
-        $searchId=uniqid('search_id_',);
+        $this->searchId=uniqid('search_id_',);
         $this->rawData = $responseData;
         $this->queryInfo = $request;
         $this->catalogProductOfferingsIdentifierValue = $responseData['CatalogProductOfferingsResponse']['CatalogProductOfferings']['Identifier']['value'];
@@ -53,8 +54,10 @@ class SearchTransformer
         foreach ($parsedOfferings['combinationsByCode'] as $comboSet) {
             $finalCombinations = array_merge($finalCombinations, $this->generateCartesianProduct($comboSet));
         }
-        dd($this->createResponse($finalCombinations));
-        return $finalCombinations;
+        // dd($this->createResponse($finalCombinations));
+        $this->createResponse($finalCombinations);
+        dd($this->identifier);
+
     }
     public function createResponse($finalCombinations)
     {
@@ -125,14 +128,16 @@ class SearchTransformer
 
     public function generateFlightOffers(array $flightCombinations): array
     {
+        $id = null;
         $flightOffers = [];
         foreach ($flightCombinations as $index => $combination) {
+            $id = $this->generateUniqueId();
             $flightOffers[$index] = [
-                'id' => $this->generateUniqueId(),
+                'id' => $id,
                 'price' => $this->extractPrice($combination),
                 'passengers' => $this->extractPassengerDetails($combination),
                 'trip_type' => $this->queryInfo->trip_type ?? 'Unknown',
-                'sequences' => $this->extractSequence($combination),
+                'sequences' => $this->extractSequence($combination, $id),
             ];
         }
 
@@ -186,19 +191,22 @@ class SearchTransformer
 
         return $passengerDetails;
     }
-    public function extractSequence(array $flightCombination): array
+    public function extractSequence(array $flightCombination, $id): array
     {
         $sequences = [];
-        foreach ($flightCombination as $key => $offer) {
+        foreach ($flightCombination as $key => $offer) {            
+            $this->identifier[$this->searchId][$id][]=['CatalogProductOfferingsIdentifier'=>$this->catalogProductOfferingsIdentifierValue,'CatalogProductOfferingIdentifier'=>$offer['id'],'ProductIdentifier'=>$offer['productRef']];
             $sequences[$key] = [
                 'brand' => isset($offer['Brand']) ? $this->getBrand($offer['Brand']['BrandRef']):"Unknown ",
                 'terms_and_conditions' => $this->getTermsAndConditions($offer),
-                'sequence' => $offer['sequence']??1,
+                'sequence' => $offer['sequence']??0,
                 'departure' => $offer['departure'],
                 'arrival' => $offer['arrival'],
                 'total_duration'=>$this->convertDurationToMinutes($offer['product']['totalDuration']),
                 'service_class'=>$this->extractPassengerFlights($offer['product']['PassengerFlight']),
                 'flight_segments' => $this->getFlightSegments($offer['product']['FlightSegment']),
+                'stops'=>count($offer['product']['FlightSegment']),
+                
             ];
         }
         return $sequences;
@@ -314,6 +322,7 @@ class SearchTransformer
                 // Format the flight segment as required
                 $flightSegments[$key] = [
                     'carrier' => $flightDetails['carrier'] ?? 'Unknown',
+                    'airline_imageUrl'=>'https://images.kiwi.com/airlines/64/'.$flightDetails['carrier'].'.png',
                     'flight_number' => $flightDetails['number'] ?? 'Unknown',
                     'equipment' => $flightDetails['equipment'] ?? 'Unknown',
                     'distance' => $flightDetails['distance'] ?? 0,
