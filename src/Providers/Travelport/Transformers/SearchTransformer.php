@@ -1,173 +1,159 @@
 <?php
 namespace Redoy\FlyHub\Providers\Travelport\Transformers;
 
+use Ramsey\Uuid\Uuid;
+use Illuminate\Support\Facades\Cache;
+use Redoy\FlyHub\Helpers\SimplifyNumber;
 
+
+/**
+ * Transforms Travelport API response data into a structured format for flight offers.
+ */
 class SearchTransformer
 {
-    protected array $rawData;
-    protected  $queryInfo;
-    protected string $catalogProductOfferingsIdentifierValue;
-    protected string $searchId;
-    protected array $flightsById = [];
-    protected array $productsById = [];
-    protected array $termsById = [];
-    protected array $brandById = [];
-    protected array $offerings = [];
-    protected array $combinabilityBySequence = [];
-    protected array $combinabilityByCode = [];
-    protected array $identifier = [];
+    private array $responseData;
+    private $queryDetails;
+    private string $catalogOfferingsId;
+    private string $searchIdentifier;
+    private array $flightsMap = [];
+    private array $productsMap = [];
+    private array $termsMap = [];
+    private array $brandsMap = [];
+    private array $catalogOfferings = [];
+    private array $combinationsBySequence = [];
+    private array $combinationsByCode = [];
+    private array $offerIdentifiers = [];
 
+    /**
+     * Initializes the transformer with API response and request data.
+     *
+     * @param array $responseData API response data
+     * @param mixed $request Query request details
+     */
     public function __construct(array $responseData, $request)
     {
-        $this->searchId=uniqid('search_id_',);
-        $this->rawData = $responseData;
-        $this->queryInfo = $request;
-        $this->catalogProductOfferingsIdentifierValue = $responseData['CatalogProductOfferingsResponse']['CatalogProductOfferings']['Identifier']['value'];
+        $this->searchIdentifier = uniqid('search_', true);
+        $this->responseData = $responseData;
+        $this->queryDetails = $request;
+        $this->catalogOfferingsId = $responseData['CatalogProductOfferingsResponse']['CatalogProductOfferings']['Identifier']['value'] ?? '';
 
         $referenceList = $responseData['CatalogProductOfferingsResponse']['ReferenceList'] ?? [];
         $referenceByType = array_column($referenceList, null, '@type');
 
-        $this->flightsById = isset($referenceByType['ReferenceListFlight']['Flight'])
-            ? array_column($referenceByType['ReferenceListFlight']['Flight'], null, 'id')
-            : [];
+        $this->flightsMap = $referenceByType['ReferenceListFlight']['Flight'] ?? [];
+        $this->flightsMap = array_column($this->flightsMap, null, 'id');
 
-        $this->productsById = isset($referenceByType['ReferenceListProduct']['Product'])
-            ? array_column($referenceByType['ReferenceListProduct']['Product'], null, 'id')
-            : [];
+        $this->productsMap = $referenceByType['ReferenceListProduct']['Product'] ?? [];
+        $this->productsMap = array_column($this->productsMap, null, 'id');
 
-        $this->termsById = isset($referenceByType['ReferenceListTermsAndConditions']['TermsAndConditions'])
-            ? array_column($referenceByType['ReferenceListTermsAndConditions']['TermsAndConditions'], null, 'id')
-            : [];
-        $this->brandById = isset($referenceByType['ReferenceListBrand']['Brand'])
-            ? array_column($referenceByType['ReferenceListBrand']['Brand'], null, 'id')
-            : [];
+        $this->termsMap = $referenceByType['ReferenceListTermsAndConditions']['TermsAndConditions'] ?? [];
+        $this->termsMap = array_column($this->termsMap, null, 'id');
 
-        $this->offerings = $responseData['CatalogProductOfferingsResponse']['CatalogProductOfferings']['CatalogProductOffering'] ?? [];
-      
+        $this->brandsMap = $referenceByType['ReferenceListBrand']['Brand'] ?? [];
+        $this->brandsMap = array_column($this->brandsMap, null, 'id');
+
+        $this->catalogOfferings = $responseData['CatalogProductOfferingsResponse']['CatalogProductOfferings']['CatalogProductOffering'] ?? [];
     }
 
+    /**
+     * Transforms the raw data into structured flight offer data.
+     *
+     * @return array Structured response with flight offers
+     */
     public function transform(): array
     {
-        $finalCombinations = [];
+        $offerCombinations = [];
         $parsedOfferings = $this->parseOfferingsByCombinability();
 
         foreach ($parsedOfferings['combinationsByCode'] as $comboSet) {
-            $finalCombinations = array_merge($finalCombinations, $this->generateCartesianProduct($comboSet));
+            $offerCombinations = array_merge($offerCombinations, $this->generateCartesianProduct($comboSet));
         }
-        // dd($this->createResponse($finalCombinations));
-        $this->createResponse($finalCombinations);
-        dd($this->identifier);
 
-    }
-    public function createResponse($finalCombinations)
-    {
-        return [
-            'provider' => 'Travelport',  // Provider name
-            'flights' => $this->generateFlightOffers($finalCombinations),  // The generated flight combinations
-            'meta' => [
-                'total' => count($finalCombinations),
-                'status' => 'success',
-            ]
-        ];
-    }
-
-    protected function generateCartesianProduct(array $inputArrays): array
-    {
-
-        $result = [[]];
-        foreach ($inputArrays as $array) {
-            $tempResult = [];
-            foreach ($result as $prefix) {
-                foreach ($array as $item) {
-                    $tempResult[] = [...$prefix, $item];
-                }
-            }
-            $result = $tempResult;
-
-        }
+        $result = $this->createResponse($offerCombinations);
+        $this->cacheAllOfferIdentifiers(); // Cache after search is complete
         return $result;
     }
 
-    protected function parseOfferingsByCombinability(): array
+    /**
+     * Creates the final structured response.
+     *
+     * @param array $combinations Flight offer combinations
+     * @return array Structured response
+     */
+    private function createResponse(array $combinations): array
     {
-        $combinationsBySequence = [];
-        $combinationsByCode = [];
-
-        foreach ($this->offerings as $offering) {
-            $id = $offering['id'];
-            $sequence = $offering['sequence'];
-            $departure = $offering['Departure'];
-            $arrival = $offering['Arrival'];
-            foreach ($offering['ProductBrandOptions'] ?? [] as $option) {
-                foreach ($option['ProductBrandOffering'] ?? [] as $brandOffer) {
-                    $brandOffer['id'] = $id;
-                    $brandOffer['sequence'] = $sequence;
-                    $brandOffer['departure'] = $departure;
-                    $brandOffer['arrival'] = $arrival;
-                    $brandOffer['productRef'] = $brandOffer['Product'][0]['productRef'] ?? null;
-                    $brandOffer['product'] = $this->productsById[$brandOffer['Product'][0]['productRef']] ?? null;
-
-                    $combinationsBySequence[$sequence][] = $brandOffer;
-
-                    foreach ($brandOffer['CombinabilityCode'] ?? [] as $code) {
-                        $combinationsByCode[$code][$sequence][] = $brandOffer;
-                    }
-                }
-            }
-        }
-
-        $this->combinabilityBySequence = $combinationsBySequence;
-        $this->combinabilityByCode = $combinationsByCode;
-
         return [
-            'offeringsBySequence' => $combinationsBySequence,
-            'combinationsByCode' => $combinationsByCode,
+            'provider' => 'Travelport',
+            'flights' => $this->generateFlightOffers($combinations),
+            'meta' => [
+                'total' => count($combinations),
+                'status' => 'success',
+            ],
         ];
     }
 
 
-    public function generateFlightOffers(array $flightCombinations): array
+
+    /**
+     * Generates structured flight offers from combinations.
+     *
+     * @param array $combinations Flight combinations
+     * @return array Structured flight offers
+     */
+    private function generateFlightOffers(array $combinations): array
     {
-        $id = null;
         $flightOffers = [];
-        foreach ($flightCombinations as $index => $combination) {
-            $id = $this->generateUniqueId();
+        foreach ($combinations as $index => $combination) {
+            $offerId = $this->generateUniqueId();
             $flightOffers[$index] = [
-                'id' => $id,
-                'price' => $this->extractPrice($combination),
-                'passengers' => $this->extractPassengerDetails($combination),
-                'trip_type' => $this->queryInfo->trip_type ?? 'Unknown',
-                'sequences' => $this->extractSequence($combination, $id),
+                'id' => $offerId,
+                'price' => $this->extractPrice($combination[0]['BestCombinablePrice'] ?? []),
+                'passengers' => $this->extractPassengerDetails($combination[0]['BestCombinablePrice']['PriceBreakdown'] ?? []),
+                'trip_type' => $this->queryDetails->trip_type ?? 'Unknown',
+                'sequences' => $this->extractSequence($combination, $offerId),
             ];
         }
-
         return $flightOffers;
     }
 
-
+    /**
+     * Generates a unique identifier for offers.
+     *
+     * @return string Unique identifier
+     */
     private function generateUniqueId(): string
     {
-        // Generates a unique ID for each offer
-        return uniqid('offer_', true);
+        return Uuid::uuid4()->toString();
     }
 
-    private function extractPrice(array $flightCombination)
+    /**
+     * Extracts price details from flight combination.
+     *
+     * @param array $priceData Price data
+     * @return array|null Price details or null if invalid
+     */
+    private function extractPrice(array $priceData): ?array
     {
-        if ($flightCombination[0]['BestCombinablePrice'] !== null) {
-            // Extract Base, Taxes, Fees, and Total Price if available
-            return [
-                'currency' => $flightCombination[0]['BestCombinablePrice']['CurrencyCode']['value'],
-                'base' => $flightCombination[0]['BestCombinablePrice']['Base'] ?? 0,
-                'total_taxes' => $flightCombination[0]['BestCombinablePrice']['TotalTaxes'] ?? 0,
-                'total_fees' => $flightCombination[0]['BestCombinablePrice']['TotalFees'] ?? 0,
-                'total_price' => $flightCombination[0]['BestCombinablePrice']['TotalPrice'] ?? 0,
-            ];
+        if (empty($priceData)) {
+            return null;
         }
 
-        return null;
+        return [
+            'currency' => $priceData['CurrencyCode']['value'] ?? 'USD',
+            'base' => $priceData['Base'] ?? 0.0,
+            'total_taxes' => $priceData['TotalTaxes'] ?? 0.0,
+            'total_fees' => $priceData['TotalFees'] ?? 0.0,
+            'total_price' => $priceData['TotalPrice'] ?? 0.0,
+        ];
     }
 
-    private function extractPassengerDetails(array $flightCombination): array
+    /**
+     * Extracts passenger details from price breakdown.
+     *
+     * @param array $breakdown Price breakdown data
+     * @return array Passenger details
+     */
+    private function extractPassengerDetails(array $breakdown): array
     {
         $passengerDetails = [
             'adults' => 0,
@@ -175,42 +161,62 @@ class SearchTransformer
             'infants' => 0,
         ];
 
-        foreach ($flightCombination[0]['BestCombinablePrice']['PriceBreakdown'] as $breakdown) {
-            switch ($breakdown['requestedPassengerType']) {
-                case 'ADT': // Adult
-                    $passengerDetails['adults'] += $breakdown['quantity'];
+        foreach ($breakdown as $item) {
+            switch ($item['requestedPassengerType'] ?? '') {
+                case 'ADT':
+                    $passengerDetails['adults'] += (int) ($item['quantity'] ?? 0);
                     break;
-                case 'CNN': // Child
-                    $passengerDetails['children'] += $breakdown['quantity'];
+                case 'CNN':
+                    $passengerDetails['children'] += (int) ($item['quantity'] ?? 0);
                     break;
-                case 'INF': // Infant
-                    $passengerDetails['infants'] += $breakdown['quantity'];
+                case 'INF':
+                    $passengerDetails['infants'] += (int) ($item['quantity'] ?? 0);
                     break;
             }
         }
 
         return $passengerDetails;
     }
-    public function extractSequence(array $flightCombination, $id): array
+
+    /**
+     * Extracts sequence details for flight offers.
+     *
+     * @param array $combination Flight combination
+     * @param string $offerId Offer identifier
+     * @return array Sequence details
+     */
+    private function extractSequence(array $combination, string $offerId): array
     {
         $sequences = [];
-        foreach ($flightCombination as $key => $offer) {            
-            $this->identifier[$this->searchId][$id][]=['CatalogProductOfferingsIdentifier'=>$this->catalogProductOfferingsIdentifierValue,'CatalogProductOfferingIdentifier'=>$offer['id'],'ProductIdentifier'=>$offer['productRef']];
+        foreach ($combination as $key => $offer) {
+            $this->offerIdentifiers[$this->searchIdentifier][$offerId][] = [
+                'provider' => 'travelport',
+                'CatalogProductOfferingsIdentifier' => $this->catalogOfferingsId,
+                'CatalogProductOfferingIdentifier' => $offer['id'] ?? '',
+                'ProductIdentifier' => $offer['productRef'] ?? '',
+            ];
+
             $sequences[$key] = [
-                'brand' => isset($offer['Brand']) ? $this->getBrand($offer['Brand']['BrandRef']):"Unknown ",
-                'terms_and_conditions' => $this->getTermsAndConditions($offer),
-                'sequence' => $offer['sequence']??0,
-                'departure' => $offer['departure'],
-                'arrival' => $offer['arrival'],
-                'total_duration'=>$this->convertDurationToMinutes($offer['product']['totalDuration']),
-                'service_class'=>$this->extractPassengerFlights($offer['product']['PassengerFlight']),
-                'flight_segments' => $this->getFlightSegments($offer['product']['FlightSegment']),
-                'stops'=>count($offer['product']['FlightSegment']),
-                
+                'brand' => isset($offer['Brand']) ? $this->getBrand($offer['Brand']['BrandRef']) : ['name' => 'Unknown'],
+                'terms_and_conditions' => $this->getTermsAndConditions($offer['TermsAndConditions']['termsAndConditionsRef'] ?? null),
+                'sequence' => $offer['sequence'] ?? 0,
+                'departure' => $offer['departure'] ?? [],
+                'arrival' => $offer['arrival'] ?? [],
+                'total_duration' => SimplifyNumber::convertDurationToMinutes($offer['product']['totalDuration'] ?? 'PT0H0M'),
+                'service_class' => $this->extractPassengerFlights($offer['product']['PassengerFlight'] ?? []),
+                'flight_segments' => $this->getFlightSegments($offer['product']['FlightSegment'] ?? []),
+                'stops' => count($offer['product']['FlightSegment'] ?? []),
             ];
         }
         return $sequences;
     }
+
+    /**
+     * Extracts passenger flight details.
+     *
+     * @param array $passengerFlights Passenger flight data
+     * @return array Formatted passenger flight details
+     */
     private function extractPassengerFlights(array $passengerFlights): array
     {
         return array_map(function ($item) {
@@ -221,35 +227,36 @@ class SearchTransformer
                 'class' => $product['classOfService'] ?? null,
                 'cabin' => $product['cabin'] ?? null,
                 'fare_code' => $product['fareBasisCode'] ?? null,
-                'brand' => isset($product['Brand']) ? $this->getBrand($product['Brand']['BrandRef']) : "Unknown "
+                'brand' => isset($product['Brand']) ? $this->getBrand($product['Brand']['BrandRef']) : ['name' => 'Unknown'],
             ];
         }, $passengerFlights);
     }
 
-
-
-
-    // Format Terms and Conditions
-    public function getTermsAndConditions(array $offer)
+    /**
+     * Formats terms and conditions data.
+     *
+     * @param string|null $termsRef Terms reference ID
+     * @return array|null Terms details or null if not found
+     */
+    private function getTermsAndConditions(?string $termsRef): ?array
     {
-        // Check if the 'TermsAndConditions' and 'termsAndConditionsRef' exist
-        $termsRef = $offer['TermsAndConditions']['termsAndConditionsRef'] ?? null;
-
-        // If the reference exists, fetch the details from the termsById array
-        if ($termsRef && isset($this->termsById[$termsRef])) {
-            $termsDetails = $this->termsById[$termsRef];
-
+        if ($termsRef && isset($this->termsMap[$termsRef])) {
+            $termsDetails = $this->termsMap[$termsRef];
             return [
                 'baggage_allowance' => $this->extractBaggageAllowance($termsDetails['BaggageAllowance'] ?? []),
                 'payment_timeLimit' => $termsDetails['PaymentTimeLimit'] ?? null,
                 'penalties' => $this->extractPenalties($termsDetails['Penalties'] ?? []),
             ];
         }
-
-        // Return null if no valid terms and conditions found
         return null;
     }
 
+    /**
+     * Extracts baggage allowance details.
+     *
+     * @param array $baggageAllowance Baggage allowance data
+     * @return array Formatted baggage allowance
+     */
     private function extractBaggageAllowance(array $baggageAllowance): array
     {
         return array_map(function ($allowance) {
@@ -261,23 +268,27 @@ class SearchTransformer
         }, $baggageAllowance);
     }
 
+    /**
+     * Extracts penalty details.
+     *
+     * @param array $penalties Penalty data
+     * @return array Formatted penalties
+     */
     private function extractPenalties(array $penalties): array
     {
         return array_map(function ($penalty) {
-            // Extract Change Penalty
             $change = $penalty['Change'][0] ?? null;
             $changePenalty = $change ? [
                 'applies_to' => $change['PenaltyAppliesTo'] ?? null,
                 'penalty_type' => $change['@type'] ?? null,
-                'amount' => $change['Penalty'][0]['Amount']['value'] ?? 0,
+                'amount' => $change['Penalty'][0]['Amount']['value'] ?? 0.0,
             ] : null;
 
-            // Extract Cancel Penalty
             $cancel = $penalty['Cancel'][0] ?? null;
             $cancelPenalty = $cancel ? [
                 'applies_to' => $cancel['PenaltyAppliesTo'] ?? null,
                 'penalty_type' => $cancel['@type'] ?? null,
-                'amount' => $cancel['Penalty'][0]['Amount']['value'] ?? 0,
+                'amount' => $cancel['Penalty'][0]['Amount']['value'] ?? 0.0,
                 'currency' => $cancel['Penalty'][0]['Amount']['code'] ?? null,
             ] : null;
 
@@ -290,49 +301,31 @@ class SearchTransformer
 
 
 
-    function convertDurationToMinutes($duration)
-    {
-        // Match the duration in the format PTxHyM (x = hours, y = minutes)
-        if (preg_match('/PT(\d+)H(\d+)M/', $duration, $matches)) {
-            $hours = (int) $matches[1]; // Hours part
-            $minutes = (int) $matches[2]; // Minutes part
-        
-            // Convert the total time to minutes
-            return ($hours * 60) + $minutes;
-        }
-    
-        // Return 0 if the format is not recognized
-        return 0;
-    }
-
-
-
-
-
-    // Format Flight Segments
-    public function getFlightSegments(array $offer)
+    /**
+     * Formats flight segment details.
+     *
+     * @param array $segments Flight segment data
+     * @return array Formatted flight segments
+     */
+    private function getFlightSegments(array $segments): array
     {
         $flightSegments = [];
-
-        foreach ($offer as $key => $value) {
-            // Get the flight details based on the FlightRef
-            $flightDetails = $this->flightsById[$value['Flight']['FlightRef']] ?? null;
-
-            if ($flightDetails) {
-                // Format the flight segment as required
+        foreach ($segments as $key => $segment) {
+            $flightDetails = $this->flightsMap[$segment['Flight']['FlightRef'] ?? ''] ?? null;
+            if (isset($flightDetails)) {
                 $flightSegments[$key] = [
                     'carrier' => $flightDetails['carrier'] ?? 'Unknown',
-                    'airline_imageUrl'=>'https://images.kiwi.com/airlines/64/'.$flightDetails['carrier'].'.png',
+                    'airline_imageUrl' => 'https://images.kiwi.com/airlines/64/' . ($flightDetails['carrier'] ?? 'Unknown') . '.png',
                     'flight_number' => $flightDetails['number'] ?? 'Unknown',
                     'equipment' => $flightDetails['equipment'] ?? 'Unknown',
                     'distance' => $flightDetails['distance'] ?? 0,
-                    'duration' => $this->convertDurationToMinutes($flightDetails['distance']) ?? 'Unknown',
+                    'duration' => SimplifyNumber::convertDurationToMinutes($flightDetails['duration'] ?? 'PT0H0M'),
                     'departure' => [
                         'location' => $flightDetails['Departure']['location'] ?? 'Unknown',
                         'date' => $flightDetails['Departure']['date'] ?? 'Unknown',
                         'time' => $flightDetails['Departure']['time'] ?? 'Unknown',
                     ],
-                    'drrival' => [
+                    'arrival' => [
                         'location' => $flightDetails['Arrival']['location'] ?? 'Unknown',
                         'date' => $flightDetails['Arrival']['date'] ?? 'Unknown',
                         'time' => $flightDetails['Arrival']['time'] ?? 'Unknown',
@@ -340,24 +333,97 @@ class SearchTransformer
                 ];
             }
         }
-
         return $flightSegments;
     }
 
-
-    // Format Brand information
-    public function getBrand(string $brandRef): array
+    /**
+     * Formats brand information.
+     *
+     * @param string $brandRef Brand reference ID
+     * @return array Brand details
+     */
+    private function getBrand(string $brandRef): array
     {
-        if (isset($this->brandById[$brandRef])) {
-            $brandDetails = $this->brandById[$brandRef];
-
-            return [
-                'name' => $brandDetails['name'] ?? null,
-                'imageURL' => $brandDetails['imageURL'] ?? null,
-            ];
-        }
-
-        return [];
+        $brandDetails = $this->brandsMap[$brandRef] ?? [];
+        return [
+            'name' => $brandDetails['name'] ?? 'Unknown',
+            'imageURL' => $brandDetails['imageURL'] ?? null,
+        ];
     }
 
+
+    /**
+     * Generates Cartesian product of input arrays.
+     *
+     * @param array $inputArrays Arrays to combine
+     * @return array Cartesian product combinations
+     */
+    private function generateCartesianProduct(array $inputArrays): array
+    {
+        $result = [[]];
+        foreach ($inputArrays as $array) {
+            $tempResult = [];
+            foreach ($result as $prefix) {
+                foreach ($array as $item) {
+                    $tempResult[] = [...$prefix, $item];
+                }
+            }
+            $result = $tempResult;
+        }
+        return $result;
+    }
+
+    /**
+     * Parses offerings by combinability codes and sequences.
+     *
+     * @return array Parsed offerings data
+     */
+    private function parseOfferingsByCombinability(): array
+    {
+        $combinationsBySequence = [];
+        $combinationsByCode = [];
+
+        foreach ($this->catalogOfferings as $offering) {
+            $offerId = $offering['id'] ?? '';
+            $sequence = $offering['sequence'] ?? '';
+            $departure = $offering['Departure'] ?? [];
+            $arrival = $offering['Arrival'] ?? [];
+
+            foreach ($offering['ProductBrandOptions'] ?? [] as $option) {
+                foreach ($option['ProductBrandOffering'] ?? [] as $brandOffer) {
+                    $brandOffer['id'] = $offerId;
+                    $brandOffer['sequence'] = $sequence;
+                    $brandOffer['departure'] = $departure;
+                    $brandOffer['arrival'] = $arrival;
+                    $brandOffer['productRef'] = $brandOffer['Product'][0]['productRef'] ?? null;
+                    $brandOffer['product'] = $this->productsMap[$brandOffer['productRef']] ?? null;
+
+                    $combinationsBySequence[$sequence][] = $brandOffer;
+
+                    foreach ($brandOffer['CombinabilityCode'] ?? [] as $code) {
+                        $combinationsByCode[$code][$sequence][] = $brandOffer;
+                    }
+                }
+            }
+        }
+
+        $this->combinationsBySequence = $combinationsBySequence;
+        $this->combinationsByCode = $combinationsByCode;
+
+        return [
+            'offeringsBySequence' => $combinationsBySequence,
+            'combinationsByCode' => $combinationsByCode,
+        ];
+    }
+    /**
+     * Caches all offer identifiers for the current search.
+     *
+     * @return void
+     */
+    private function cacheAllOfferIdentifiers(): void
+    {
+        // dd($this->offerIdentifiers);
+        $cacheKey = "ff:{$this->searchIdentifier}";
+        Cache::put($cacheKey, $this->offerIdentifiers ?? [], now()->addHour());
+    }
 }
