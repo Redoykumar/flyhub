@@ -27,9 +27,19 @@ return [
 
         'amadeus' => [
             'class' => \Redoy\FlyHub\Providers\Amadeus\AmadeusClient::class,
+            'environment' => env('AMADEUS_ENV', 'sandbox'), // sandbox | production
+            'base_urls' => [
+                'sandbox' => 'https://test.api.amadeus.com/v2',
+                'production' => 'https://api.amadeus.com/v2',
+            ],
+            'auth_urls' => [
+                'sandbox' => 'https://test.api.amadeus.com/v1/security/oauth2/token',
+                'production' => 'https://api.amadeus.com/v1/security/oauth2/token',
+            ],
             'api_key' => env('AMADEUS_API_KEY'),
-            'endpoint' => env('AMADEUS_ENDPOINT'),
+            'api_secret' => env('AMADEUS_API_SECRET'),
         ],
+
     ],
 
     'pricing' => [

@@ -202,7 +202,7 @@ class SearchTransformer
                 'sequence' => $offer['sequence'] ?? 0,
                 'departure' => $offer['departure'] ?? [],
                 'arrival' => $offer['arrival'] ?? [],
-                'total_duration' => SimplifyNumber::convertDurationToMinutes($offer['product']['totalDuration'] ?? 'PT0H0M'),
+                'total_duration' => SimplifyNumber::convertDurationToMinutes($offer['product']['totalDuration'] ?? '0'),
                 'service_class' => $this->extractPassengerFlights($offer['product']['PassengerFlight'] ?? []),
                 'flight_segments' => $this->getFlightSegments($offer['product']['FlightSegment'] ?? []),
                 'stops' => count($offer['product']['FlightSegment'] ?? []),
@@ -319,7 +319,7 @@ class SearchTransformer
                     'flight_number' => $flightDetails['number'] ?? 'Unknown',
                     'equipment' => $flightDetails['equipment'] ?? 'Unknown',
                     'distance' => $flightDetails['distance'] ?? 0,
-                    'duration' => SimplifyNumber::convertDurationToMinutes($flightDetails['duration'] ?? 'PT0H0M'),
+                    'duration' => SimplifyNumber::convertDurationToMinutes($flightDetails['duration'] ?? '0'),
                     'departure' => [
                         'location' => $flightDetails['Departure']['location'] ?? 'Unknown',
                         'date' => $flightDetails['Departure']['date'] ?? 'Unknown',
@@ -422,7 +422,6 @@ class SearchTransformer
      */
     private function cacheAllOfferIdentifiers(): void
     {
-        // dd($this->offerIdentifiers);
         $cacheKey = "ff:{$this->searchIdentifier}";
         Cache::put($cacheKey, $this->offerIdentifiers ?? [], now()->addHour());
     }

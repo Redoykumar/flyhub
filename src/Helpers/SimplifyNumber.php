@@ -21,6 +21,28 @@ class SimplifyNumber
         }
         return 0;
     }
+    public static function extractDate(string $datetime): string
+    {
+        try {
+            $dt = new \DateTime($datetime);
+            return $dt->format('Y-m-d');  // '2025-05-16'
+        } catch (\Exception $e) {
+            return '';  // Return empty if there is an error
+        }
+    }
+
+    public static function extractTime(string $datetime): string
+    {
+        try {
+            $dt = new \DateTime($datetime);
+            return $dt->format('H:i:s');  // '18:50:00'
+        } catch (\Exception $e) {
+            return '';  // Return empty if there is an error
+        }
+    }
+
+
+
 
     // Add other existing helper methods here (if any)
 }
