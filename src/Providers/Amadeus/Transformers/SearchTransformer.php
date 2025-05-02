@@ -137,7 +137,7 @@ class SearchTransformer
      */
     private function extractSequence(array $combination, string $offerId): array
     {
-        dd($combination);
+        // dd($combination);
         $sequences = [];
         foreach ($combination['itineraries'] as $key => $offer) {
             // $this->offerIdentifiers[$this->searchIdentifier][$offerId][] = [
@@ -146,12 +146,13 @@ class SearchTransformer
             //     'CatalogProductOfferingIdentifier' => $offer['id'] ?? '',
             //     'ProductIdentifier' => $offer['productRef'] ?? '',
             // ];
+            // dd($offer);
             $sequences[$key] = [
                 'brand' => [
                     'name' => $combination['travelerPricings'][0]['fareDetailsBySegment'][0]['brandedFareLabel'] ?? 'Unknown',
                     'imageURL' => null,
                 ],
-                'terms_and_conditions' => $this->getTermsAndConditions($offer['TermsAndConditions']['termsAndConditionsRef'] ?? null),
+                'terms_and_conditions' => dd($this->getTermsAndConditions($combination['travelerPricings'][0]['fareDetailsBySegment'][0], $offer['segments'][0]['carrierCode'], $combination) ?? null),
                 'sequence' => $key + 1 ?? 0,
                 'departure' => $offer['segments'][0]['departure']['iataCode'] ?? [],
                 'arrival' => end($offer['segments'])['arrival']['iataCode'] ?? [],
@@ -196,17 +197,15 @@ class SearchTransformer
      * @param string|null $termsRef Terms reference ID
      * @return array|null Terms details or null if not found
      */
-    private function getTermsAndConditions(?string $termsRef): ?array
+    private function getTermsAndConditions(?array $terms, $airline_code,$combination): ?array
     {
-        if ($termsRef && isset($this->termsMap[$termsRef])) {
-            $termsDetails = [];
-            return [
-                'baggage_allowance' => $this->extractBaggageAllowance($termsDetails['BaggageAllowance'] ?? []),
-                'payment_timeLimit' => $termsDetails['PaymentTimeLimit'] ?? null,
-                'penalties' => $this->extractPenalties($termsDetails['Penalties'] ?? []),
-            ];
-        }
-        return null;
+
+        return [
+            'baggage_allowance' => $this->extractBaggageAllowance($terms ?? [], $airline_code),
+            'payment_timeLimit' => $combination['lastTicketingDateTime'] ?? $combination['lastTicketingDate'] ?? null,
+            'penalties' => $this->extractPenalties($terms ?? []),
+        ] ?? null;
+
     }
 
     /**
@@ -215,16 +214,25 @@ class SearchTransformer
      * @param array $baggageAllowance Baggage allowance data
      * @return array Formatted baggage allowance
      */
-    private function extractBaggageAllowance(array $baggageAllowance): array
+    private function extractBaggageAllowance(array $baggageAllowance, $airline_code): array
     {
-        return array_map(function ($allowance) {
-            return [
-                'baggage_type' => $allowance['baggageType'] ?? null, // Example: "Checked", "Cabin"
-                'airline_code' => $allowance['airlineCode'] ?? null, // Example: "AA" for American Airlines
-                'url' => $allowance['url'] ?? null, // Example: link to baggage policy URL
-            ];
-        }, $baggageAllowance);
+        $types = [];
+
+        if (!empty($baggageAllowance['includedCheckedBags'])) {
+            $types[] = 'Checked';
+        }
+
+        if (!empty($baggageAllowance['includedCabinBags'])) {
+            $types[] = 'CarryOn';
+        }
+
+        return [
+            'baggage_type' => implode(', ', $types) ?: null,
+            'airline_code' => $airline_code ?? null,
+            'url' => $baggageAllowance['url'] ?? null,
+        ];
     }
+
 
 
     /**
@@ -233,31 +241,26 @@ class SearchTransformer
      * @param array $penalties Penalty data
      * @return array Formatted penalties
      */
-    private function extractPenalties(array $penalties): array
+    private function extractPenalties(?array $penalties = null): array
     {
-        return array_map(function ($penalty) {
-            // Extract Change Penalty
-            $changePenalty = isset($penalty['change']) ? [
-                'applies_to' => $penalty['change']['appliesTo'] ?? null,
-                'penalty_type' => $penalty['change']['penaltyType'] ?? null,
-                'amount' => $penalty['change']['amount'] ?? 0.0,
-            ] : null;
-
-            // Extract Cancel Penalty
-            $cancelPenalty = isset($penalty['cancel']) ? [
-                'applies_to' => $penalty['cancel']['appliesTo'] ?? null,
-                'penalty_type' => $penalty['cancel']['penaltyType'] ?? null,
-                'amount' => $penalty['cancel']['amount'] ?? 0.0,
-                'currency' => $penalty['cancel']['currency'] ?? null,
-            ] : null;
-
-            // Return both change and cancel penalties
-            return [
-                'change_penalty' => $changePenalty,
-                'cancel_penalty' => $cancelPenalty,
-            ];
-        }, $penalties);
+        // Fallback default penalty if no data is provided
+        return [
+            [
+                'change_penalty' => [
+                    'applies_to' => 'FLIGHT',
+                    'penalty_type' => 'ChangePermitted',
+                    'amount' => 0.0,
+                ],
+                'cancel_penalty' => [
+                    'applies_to' => 'FLIGHT',
+                    'penalty_type' => 'CancelNotPermitted',
+                    'amount' => 0.0,
+                    'currency' => 'USD',
+                ],
+            ]
+        ];
     }
+
 
 
 
