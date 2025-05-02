@@ -11,6 +11,7 @@ class FlyHubManager
     protected $providerClass;
     protected $config;
     protected $results;
+    protected $meta;
 
     public function __construct($providerClass = null, array $config = [])
     {
@@ -47,9 +48,10 @@ class FlyHubManager
         return $this->config;
     }
 
-    public function setResults($results)
+    public function setResults($results,$meta)
     {
         $this->results = $results;
+        $this->meta = $meta;
         return $this;
     }
 
@@ -58,6 +60,7 @@ class FlyHubManager
         return [
             'status' => 'success',
             'data' => $this->results ?? [],
+            'meta' => $this->meta ?? [],
             'errors' => []
         ];
     }

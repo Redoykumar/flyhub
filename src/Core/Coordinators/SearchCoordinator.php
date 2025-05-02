@@ -65,8 +65,8 @@ class SearchCoordinator
                 foreach ($this->sorters as $sorter) {
                     $results = $sorter->apply($results);
                 }
-                $this->manager->setResults($results);
-                return (new SearchResponseDTO($results))->toArray();
+                $this->manager->setResults($results,[]);
+                return (new SearchResponseDTO($results,[]))->toArray();
             }
         };
     }
