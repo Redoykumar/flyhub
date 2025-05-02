@@ -39,9 +39,9 @@ class SearchService implements SearchServiceInterface
 
         return new SearchResponseDTO([
             [
-                'provider' => $transformedData['provider'],
-                'flights' => $transformedData['flights'],
-                'meta' => $transformedData['meta'],
+                // 'provider' => $transformedData['provider'],
+                'data' => $transformedData['flights'],
+                // 'meta' => $transformedData['meta'],
             ]
         ]);
     }

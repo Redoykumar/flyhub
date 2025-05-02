@@ -9,6 +9,7 @@ class MarkupManager
     // Apply markup to a single flight
     public function applyMarkup(array $flight, string $provider): array
     {
+
         $pricingSource = config('flyhub.pricing.source', 'config');
         $targetCurrency = config('flyhub.pricing.currency', 'USD');
         $fareType = $this->normalizeFareType($flight['fare_type'] ?? 'economy');
@@ -93,9 +94,9 @@ class MarkupManager
     // Apply markup to all flights in a provider's results
     public function applyMarkupToFlights(array $providerResults, string $provider): array
     {
-        $providerResults['flights'] = array_map(function ($flight) use ($provider) {
+        $providerResults = array_map(function ($flight) use ($provider) {
             return $this->applyMarkup($flight, $provider);
-        }, $providerResults['flights']);
+        }, $providerResults);
         return $providerResults;
     }
 

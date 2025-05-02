@@ -61,6 +61,7 @@ class SearchTransformer
                 'passengers' => $this->extractPassengerDetails($combination['travelerPricings'] ?? []),
                 'trip_type' => $this->request->trip_type ?? 'Unknown',
                 'sequences' => $this->extractSequence($combination, $offerId),
+                'provider' => 'amadeus'                
             ];
         }
         return $flightOffers;

@@ -54,16 +54,17 @@ class SearchCoordinator
                     $searchServiceClass = "Redoy\\FlyHub\\Providers\\" . ucfirst($providerName) . "\\Services\\SearchService";
                     $searchService = new $searchServiceClass($client);
                     $providerResponse = $searchService->search($this->dto);
-                    $providerResults = $providerResponse->data[0];
-                    $providerResults = $markupManager->applyMarkupToFlights($providerResults, $providerName);
-                    // foreach ($this->filters as $filter) {
-                    //     $providerResults['flights'] = $filter->apply($providerResults['flights']);
-                    // }
-                    // foreach ($this->sorters as $sorter) {
-                    //     $providerResults['flights'] = $sorter->apply($providerResults['flights']);
-                    // }
-                    $results[] = $providerResults;
+                    $providerResults = $providerResponse->data[0]['data'];                    
+                    $results = array_merge($results, $providerResults);
+
                 }
+                $providerResults = $markupManager->applyMarkupToFlights($providerResults, $providerName);
+                // foreach ($this->filters as $filter) {
+                //     $providerResults['flights'] = $filter->apply($providerResults['flights']);
+                // }
+                // foreach ($this->sorters as $sorter) {
+                //     $providerResults['flights'] = $sorter->apply($providerResults['flights']);
+                // }
                 $this->manager->setResults($results);
                 return (new SearchResponseDTO($results))->toArray();
             }

@@ -39,9 +39,9 @@ class SearchService implements SearchServiceInterface
         // Return standardized response
         return new SearchResponseDTO([
             [
-                'provider' => $transformedData['provider'] ?? 'Amadeus',
-                'flights' => $transformedData['flights'] ?? [],
-                'meta' => $transformedData['meta'] ?? [],
+                // 'provider' => $transformedData['provider'] ?? 'Amadeus',
+                'data' => $transformedData['flights'] ?? [],
+                // 'meta' => $transformedData['meta'] ?? [],
             ]
         ]);
     }

@@ -111,6 +111,7 @@ class SearchTransformer
                 'passengers' => $this->extractPassengerDetails($combination[0]['BestCombinablePrice']['PriceBreakdown'] ?? []),
                 'trip_type' => $this->queryDetails->trip_type ?? 'Unknown',
                 'sequences' => $this->extractSequence($combination, $offerId),
+                'provider' => 'travelport'
             ];
         }
         return $flightOffers;
