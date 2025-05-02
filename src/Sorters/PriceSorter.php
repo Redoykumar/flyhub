@@ -8,7 +8,7 @@ class PriceSorter implements SorterInterface
     public function apply(array $flights): array
     {
         usort($flights, function ($a, $b) {
-            return $a['price'] <=> $b['price'];
+            return $a['price']['total_price'] <=> $b['price']['total_price'];
         });
         return $flights;
     }

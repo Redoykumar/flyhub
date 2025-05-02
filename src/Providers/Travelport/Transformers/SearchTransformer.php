@@ -109,7 +109,7 @@ class SearchTransformer
                 'id' => $offerId,
                 'price' => $this->extractPrice($combination[0]['BestCombinablePrice'] ?? []),
                 'passengers' => $this->extractPassengerDetails($combination[0]['BestCombinablePrice']['PriceBreakdown'] ?? []),
-                'trip_type' => $this->queryDetails->trip_type ?? 'Unknown',
+                'trip_type' => $this->queryDetails->getTripType() ?? 'Unknown',
                 'sequences' => $this->extractSequence($combination, $offerId),
                 'provider' => 'travelport'
             ];
@@ -141,10 +141,10 @@ class SearchTransformer
 
         return [
             'currency' => $priceData['CurrencyCode']['value'] ?? 'USD',
-            'base' => $priceData['Base'] ?? 0.0,
-            'total_taxes' => $priceData['TotalTaxes'] ?? 0.0,
-            'total_fees' => $priceData['TotalFees'] ?? 0.0,
-            'total_price' => $priceData['TotalPrice'] ?? 0.0,
+            'base' => number_format((float) ($priceData['Base'] ?? 0.0), 2, '.', ''),
+            'total_taxes' => number_format((float) ($priceData['TotalTaxes'] ?? 0.0), 2, '.', ''),
+            'total_fees' => number_format((float) ($priceData['TotalFees'] ?? 0.0), 2, '.', ''),
+            'total_price' => number_format((float) ($priceData['TotalPrice'] ?? 0.0), 2, '.', ''),
         ];
     }
 

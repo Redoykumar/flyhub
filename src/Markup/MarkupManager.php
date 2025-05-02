@@ -9,7 +9,6 @@ class MarkupManager
     // Apply markup to a single flight
     public function applyMarkup(array $flight, string $provider): array
     {
-
         $pricingSource = config('flyhub.pricing.source', 'config');
         $targetCurrency = config('flyhub.pricing.currency', 'USD');
         $fareType = $this->normalizeFareType($flight['fare_type'] ?? 'economy');

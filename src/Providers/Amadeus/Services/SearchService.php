@@ -130,7 +130,7 @@ class SearchService implements SearchServiceInterface
 
         // Construct the payload
         $payload = [
-            'currencyCode' => $pricing['currency'] ?? 'USD',
+            'currencyCode' => $pricing['currency'] ?? 'BDT',
             'originDestinations' => $originDestinations,
             'travelers' => $travelers,
             'sources' => ['GDS'],

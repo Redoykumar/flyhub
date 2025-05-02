@@ -59,9 +59,9 @@ class SearchTransformer
                 'id' => $offerId,
                 'price' => $this->extractPrice($combination['price'] ?? []),
                 'passengers' => $this->extractPassengerDetails($combination['travelerPricings'] ?? []),
-                'trip_type' => $this->request->trip_type ?? 'Unknown',
+                'trip_type' => $this->request->getTripType() ?? 'Unknown',
                 'sequences' => $this->extractSequence($combination, $offerId),
-                'provider' => 'amadeus'                
+                'provider' => 'amadeus'
             ];
         }
         return $flightOffers;
@@ -91,10 +91,19 @@ class SearchTransformer
 
         return [
             'currency' => $priceData['currency'] ?? 'USD',
-            'base' => $priceData['base'] ?? 0.0,
-            'total_taxes' => $priceData['TotalTaxes'] ?? 0.0,
-            'total_fees' => array_reduce($priceData['fees'], fn($carry, $fee) => $carry + (float) $fee['amount'], 0.0) ?? 0.0,
-            'total_price' => $priceData['grandTotal'] ?? 0.0,
+            'base' => number_format((float) ($priceData['base'] ?? 0.0), 2, '.', ''),
+            'total_taxes' => number_format((float) ($priceData['TotalTaxes'] ?? 0.0), 2, '.', ''),
+            'total_fees' => number_format(
+                array_reduce(
+                    $priceData['fees'] ?? [],
+                    fn($carry, $fee) => $carry + (float) ($fee['amount'] ?? 0),
+                    0.0
+                ),
+                2,
+                '.',
+                ''
+            ),
+            'total_price' => number_format((float) ($priceData['grandTotal'] ?? 0.0), 2, '.', ''),
         ];
     }
 
@@ -198,7 +207,7 @@ class SearchTransformer
      * @param string|null $termsRef Terms reference ID
      * @return array|null Terms details or null if not found
      */
-    private function getTermsAndConditions(?array $terms, $airline_code,$combination): ?array
+    private function getTermsAndConditions(?array $terms, $airline_code, $combination): ?array
     {
 
         return [
