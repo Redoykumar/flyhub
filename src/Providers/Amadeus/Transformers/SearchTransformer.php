@@ -152,7 +152,7 @@ class SearchTransformer
                     'name' => $combination['travelerPricings'][0]['fareDetailsBySegment'][0]['brandedFareLabel'] ?? 'Unknown',
                     'imageURL' => null,
                 ],
-                'terms_and_conditions' => dd($this->getTermsAndConditions($combination['travelerPricings'][0]['fareDetailsBySegment'][0], $offer['segments'][0]['carrierCode'], $combination) ?? null),
+                'terms_and_conditions' => $this->getTermsAndConditions($combination['travelerPricings'][0]['fareDetailsBySegment'][0], $offer['segments'][0]['carrierCode'], $combination) ?? null,
                 'sequence' => $key + 1 ?? 0,
                 'departure' => $offer['segments'][0]['departure']['iataCode'] ?? [],
                 'arrival' => end($offer['segments'])['arrival']['iataCode'] ?? [],
