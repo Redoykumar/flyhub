@@ -2,8 +2,12 @@
 
 namespace Redoy\FlyHub\Core;
 
+use Redoy\FlyHub\Cache\PriceCache;
+use Redoy\FlyHub\Cache\SearchCache;
 use Redoy\FlyHub\Core\Coordinators\SearchCoordinator;
+use Redoy\FlyHub\Core\Coordinators\PricingCoordinator;
 use Redoy\FlyHub\DTOs\Requests\SearchRequestDTO;
+use Redoy\FlyHub\DTOs\Requests\PriceRequestDTO;
 use Illuminate\Http\Request;
 
 class FlyHubManager
@@ -12,18 +16,24 @@ class FlyHubManager
     protected $config;
     protected $results;
     protected $meta;
+    protected $priceCache;
+    protected $searchCache;
 
     public function __construct($providerClass = null, array $config = [])
     {
         $this->providerClass = $providerClass ?: $this->getDefaultProviderClass();
         $this->config = $config ?: config('flyhub.providers.' . config('flyhub.default_provider'));
+        $this->priceCache = new PriceCache();
+        $this->searchCache = new SearchCache();
     }
 
     public function provider($providerName)
     {
-        $config = config("flyhub.providers.{$providerName}");
-        $this->providerClass = $config['class'];
-        $this->config = $config;
+        $this->config = config("flyhub.providers.{$providerName}");
+        $this->providerClass = $this->config['client'] ?? null;
+        if (!$this->providerClass) {
+            throw new \Exception("Client class not defined for provider {$providerName}.");
+        }
         return $this;
     }
 
@@ -34,8 +44,85 @@ class FlyHubManager
             : new SearchRequestDTO(
                 $input instanceof Request ? $input->all() : (is_array($input) ? $input : [])
             );
+
+        // Check cache
+        if ($this->searchCache->has($dto)) {
+            $cachedResults = $this->searchCache->get($dto);
+            $this->setResults($cachedResults['data'], $cachedResults['meta']);
+            return $this;
+        }
+
         $coordinator = new SearchCoordinator($this);
-        return $coordinator->search($dto);
+        $searchCoordinator = $coordinator->search($dto);
+
+        // Cache and set results when get() is called
+        $searchCoordinator->get = function () use ($dto, $searchCoordinator) {
+            $searchResponse = call_user_func($searchCoordinator->get);
+            $this->searchCache->put($dto, $searchResponse);
+            $this->setResults($searchResponse['data'], $searchResponse['meta']);
+            return $searchResponse;
+        };
+
+        return $searchCoordinator;
+    }
+
+    public function price($request)
+    {
+        $dto = $request instanceof PriceRequestDTO
+            ? $request
+            : PriceRequestDTO::fromInput($request);
+
+        if (empty($dto->offerId)) {
+            throw new \Exception("Offer ID is required for pricing.");
+        }
+
+        if ($this->priceCache->has($dto->offerId)) {
+            $cachedData = $this->priceCache->get($dto->offerId);
+            $this->results = [
+                'totalPrice' => $cachedData['totalPrice'],
+                'currency' => $cachedData['currency'],
+                'flightSegments' => $cachedData['flightSegments'],
+            ];
+            $this->meta = $cachedData['meta'];
+            return $this;
+        }
+
+        $coordinator = new PricingCoordinator($this);
+        $priceResponse = $coordinator->getPrice($dto);
+
+        $providerName = config('flyhub.default_provider');
+        $pricingRules = config("flyhub.pricing.providers.{$providerName}", []);
+        $totalPrice = $priceResponse->totalPrice;
+
+        $markupPercentage = $pricingRules['markup_percentage'] ?? 0;
+        $fixedFee = $pricingRules['fixed_fee'] ?? 0;
+        $discountPercentage = $pricingRules['discount_percentage'] ?? 0;
+
+        $markupAmount = $totalPrice * ($markupPercentage / 100);
+        $discountAmount = $totalPrice * ($discountPercentage / 100);
+        $totalPrice = $totalPrice + $markupAmount + $fixedFee - $discountAmount;
+
+        $this->results = [
+            'totalPrice' => $totalPrice,
+            'currency' => $priceResponse->currency,
+            'flightSegments' => $priceResponse->flightSegments,
+        ];
+        $this->meta = array_merge($priceResponse->meta, [
+            'pricing' => [
+                'markup_percentage' => $markupPercentage,
+                'fixed_fee' => $fixedFee,
+                'discount_percentage' => $discountPercentage,
+            ],
+        ]);
+
+        $this->priceCache->put($dto->offerId, [
+            'totalPrice' => $totalPrice,
+            'currency' => $priceResponse->currency,
+            'flightSegments' => $priceResponse->flightSegments,
+            'meta' => $this->meta,
+        ]);
+
+        return $this;
     }
 
     public function getProviderClass()
@@ -48,7 +135,7 @@ class FlyHubManager
         return $this->config;
     }
 
-    public function setResults($results,$meta)
+    public function setResults($results, $meta)
     {
         $this->results = $results;
         $this->meta = $meta;
@@ -61,7 +148,7 @@ class FlyHubManager
             'status' => 'success',
             'data' => $this->results ?? [],
             'meta' => $this->meta ?? [],
-            'errors' => []
+            'errors' => [],
         ];
     }
 
@@ -69,15 +156,11 @@ class FlyHubManager
     {
         return $this;
     }
-    public function price()
-    {
-        return $this;
-    }
     public function display()
     {
         return $this->getResults();
     }
-    public function filter()
+    public function filters()
     {
         return $this;
     }
@@ -144,6 +227,6 @@ class FlyHubManager
 
     protected function getDefaultProviderClass(): string
     {
-        return config('flyhub.providers.' . config('flyhub.default_provider') . '.class');
+        return config('flyhub.providers.' . config('flyhub.default_provider') . '.client');
     }
 }

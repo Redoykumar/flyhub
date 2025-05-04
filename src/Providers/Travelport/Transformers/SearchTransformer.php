@@ -14,7 +14,6 @@ class SearchTransformer
     private array $responseData;
     private $queryDetails;
     private string $catalogOfferingsId;
-    private string $searchIdentifier;
     private array $flightsMap = [];
     private array $productsMap = [];
     private array $termsMap = [];
@@ -32,7 +31,7 @@ class SearchTransformer
      */
     public function __construct(array $responseData, $request)
     {
-        $this->searchIdentifier = uniqid('search_', true);
+
         $this->responseData = $responseData;
         $this->queryDetails = $request;
         $this->catalogOfferingsId = $responseData['CatalogProductOfferingsResponse']['CatalogProductOfferings']['Identifier']['value'] ?? '';
@@ -70,7 +69,7 @@ class SearchTransformer
         }
 
         $result = $this->createResponse($offerCombinations);
-        $this->cacheAllOfferIdentifiers(); // Cache after search is complete
+        // $this->cacheAllOfferIdentifiers(); // Cache after search is complete
         return $result;
     }
 
@@ -190,7 +189,7 @@ class SearchTransformer
     {
         $sequences = [];
         foreach ($combination as $key => $offer) {
-            $this->offerIdentifiers[$this->searchIdentifier][$offerId][] = [
+            $this->offerIdentifiers[$offerId][] = [
                 'provider' => 'travelport',
                 'CatalogProductOfferingsIdentifier' => $this->catalogOfferingsId,
                 'CatalogProductOfferingIdentifier' => $offer['id'] ?? '',
@@ -421,9 +420,9 @@ class SearchTransformer
      *
      * @return void
      */
-    private function cacheAllOfferIdentifiers(): void
+    private function storeCacheOfferIdentifiers(): void
     {
-        $cacheKey = "ff:{$this->searchIdentifier}";
-        Cache::put($cacheKey, $this->offerIdentifiers ?? [], now()->addHour());
+        Cache::put( $this->offerIdentifiers ?? [], now()->addHour());
+     
     }
 }

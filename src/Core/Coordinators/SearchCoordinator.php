@@ -50,23 +50,27 @@ class SearchCoordinator
                 $providers = config('flyhub.providers', []);
 
                 foreach ($providers as $providerName => $providerConfig) {
-                    $client = new ($providerConfig['class'])($providerConfig);
-                    $searchServiceClass = "Redoy\\FlyHub\\Providers\\" . ucfirst($providerName) . "\\Services\\SearchService";
+                    $clientClass = $providerConfig['client'];
+                    $searchServiceClass = $providerConfig['search'];
+
+                    if (!class_exists($clientClass) || !class_exists($searchServiceClass)) {
+                        throw new \Exception("Client or search service class not found for provider {$providerName}.");
+                    }
+
+                    $client = new $clientClass($providerConfig);
                     $searchService = new $searchServiceClass($client);
                     $providerResponse = $searchService->search($this->dto);
-                    $providerResults = $providerResponse->data[0]['data'];                    
+                    $providerResults = $providerResponse->data[0]['data'] ?? [];
                     $results = array_merge($results, $providerResults);
                     $providerResults = $markupManager->applyMarkupToFlights($providerResults, $providerName);
-
                 }
-                // foreach ($this->filters as $filter) {
-                //     $providerResults['flights'] = $filter->apply($providerResults['flights']);
-                // }
+
                 foreach ($this->sorters as $sorter) {
                     $results = $sorter->apply($results);
                 }
-                $this->manager->setResults($results,[]);
-                return (new SearchResponseDTO($results,[]))->toArray();
+
+                $this->manager->setResults($results, []);
+                return (new SearchResponseDTO($results, []))->toArray();
             }
         };
     }
