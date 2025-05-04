@@ -2,13 +2,14 @@
 
 namespace Redoy\FlyHub\Core;
 
+use Illuminate\Http\Request;
 use Redoy\FlyHub\Cache\PriceCache;
 use Redoy\FlyHub\Cache\SearchCache;
+use Illuminate\Support\Facades\Cache;
+use Redoy\FlyHub\DTOs\Requests\PriceRequestDTO;
+use Redoy\FlyHub\DTOs\Requests\SearchRequestDTO;
 use Redoy\FlyHub\Core\Coordinators\SearchCoordinator;
 use Redoy\FlyHub\Core\Coordinators\PricingCoordinator;
-use Redoy\FlyHub\DTOs\Requests\SearchRequestDTO;
-use Redoy\FlyHub\DTOs\Requests\PriceRequestDTO;
-use Illuminate\Http\Request;
 
 class FlyHubManager
 {
@@ -39,6 +40,7 @@ class FlyHubManager
 
     public function search($input)
     {
+        dd(Cache::get('srch_84b01545-c7ed-4b13-bb73-7be80a17bd46'));
         $dto = $input instanceof SearchRequestDTO
             ? $input
             : new SearchRequestDTO(
@@ -53,17 +55,20 @@ class FlyHubManager
         }
 
         $coordinator = new SearchCoordinator($this);
-        $searchCoordinator = $coordinator->search($dto);
+        $searchResponse = $coordinator->search($dto)->get();
+        $searchResponse=array_merge($searchResponse,['meta'=> $this->generateMeta($dto)]);
+        // Cache the results
+        $this->searchCache->put($dto, $searchResponse);
 
-        // Cache and set results when get() is called
-        $searchCoordinator->get = function () use ($dto, $searchCoordinator) {
-            $searchResponse = call_user_func($searchCoordinator->get);
-            $this->searchCache->put($dto, $searchResponse);
-            $this->setResults($searchResponse['data'], $searchResponse['meta']);
-            return $searchResponse;
-        };
+        $this->setResults($searchResponse['data'], $searchResponse['meta']);
+        return $this;
+    }
+    protected function generateMeta(SearchRequestDTO $dto ): array
+    {
+        return [
+            'search_id' => $dto->getSearchId(),
 
-        return $searchCoordinator;
+        ];
     }
 
     public function price($request)
@@ -76,6 +81,7 @@ class FlyHubManager
             throw new \Exception("Offer ID is required for pricing.");
         }
 
+        // Check cache
         if ($this->priceCache->has($dto->offerId)) {
             $cachedData = $this->priceCache->get($dto->offerId);
             $this->results = [
@@ -90,10 +96,12 @@ class FlyHubManager
         $coordinator = new PricingCoordinator($this);
         $priceResponse = $coordinator->getPrice($dto);
 
+        // Apply pricing rules from config
         $providerName = config('flyhub.default_provider');
         $pricingRules = config("flyhub.pricing.providers.{$providerName}", []);
         $totalPrice = $priceResponse->totalPrice;
 
+        // Apply markup and fixed fee
         $markupPercentage = $pricingRules['markup_percentage'] ?? 0;
         $fixedFee = $pricingRules['fixed_fee'] ?? 0;
         $discountPercentage = $pricingRules['discount_percentage'] ?? 0;
@@ -115,6 +123,7 @@ class FlyHubManager
             ],
         ]);
 
+        // Cache the results
         $this->priceCache->put($dto->offerId, [
             'totalPrice' => $totalPrice,
             'currency' => $priceResponse->currency,

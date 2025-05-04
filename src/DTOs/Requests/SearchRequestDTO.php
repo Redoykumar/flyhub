@@ -2,8 +2,9 @@
 
 namespace Redoy\FlyHub\DTOs\Requests;
 
-use Illuminate\Support\Facades\Validator;
+use Ramsey\Uuid\Uuid;
 use InvalidArgumentException;
+use Illuminate\Support\Facades\Validator;
 
 /**
  * Data Transfer Object for flight search requests.
@@ -16,6 +17,7 @@ class SearchRequestDTO
     private array $modifiers;
     private array $pricing;
     private array $extras;
+    private string $searchId;
 
     /**
      * SearchRequestDTO constructor.
@@ -97,6 +99,8 @@ class SearchRequestDTO
         $this->modifiers = $data['modifiers'] ?? [];
         $this->pricing = $data['pricing'] ?? [];
         $this->extras = $data['extras'] ?? [];
+        $this->searchId = $this->generateSearchId();
+
     }
 
     /**
@@ -251,4 +255,14 @@ class SearchRequestDTO
         $this->validate($mergedData);
         $this->setProperties($mergedData);
     }
+    private function generateSearchId(): string
+    {
+        return 'srch_'.Uuid::uuid4()->toString();
+    }
+    public function getSearchId(): string
+    {
+        return $this->searchId;
+    }
+
+
 }

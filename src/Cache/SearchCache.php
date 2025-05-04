@@ -50,7 +50,7 @@ class SearchCache
             return;
         }
 
-        $ttl = config('flyhub.cache.ttl', 3600);
+        $ttl = config('flyhub.cache.ttl', now()->addMinutes(30));
         Cache::put($this->generateCacheKey($dto), $results, $ttl);
     }
 

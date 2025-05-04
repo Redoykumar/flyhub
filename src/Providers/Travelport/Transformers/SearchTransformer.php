@@ -69,7 +69,7 @@ class SearchTransformer
         }
 
         $result = $this->createResponse($offerCombinations);
-        // $this->cacheAllOfferIdentifiers(); // Cache after search is complete
+        $this->storeCacheOfferIdentifiers(); // Cache after search is complete
         return $result;
     }
 
@@ -189,7 +189,7 @@ class SearchTransformer
     {
         $sequences = [];
         foreach ($combination as $key => $offer) {
-            $this->offerIdentifiers[$offerId][] = [
+            $this->offerIdentifiers[$this->queryDetails->getSearchId()][$offerId][] = [
                 'provider' => 'travelport',
                 'CatalogProductOfferingsIdentifier' => $this->catalogOfferingsId,
                 'CatalogProductOfferingIdentifier' => $offer['id'] ?? '',
@@ -422,7 +422,8 @@ class SearchTransformer
      */
     private function storeCacheOfferIdentifiers(): void
     {
-        Cache::put( $this->offerIdentifiers ?? [], now()->addHour());
+        
+        Cache::put( $this->queryDetails->getSearchId(),$this->offerIdentifiers ?? [], now()->addMinutes(30));
      
     }
 }
