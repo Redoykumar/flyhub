@@ -41,7 +41,7 @@ class FlyHubManager
 
     public function search($input)
     {
-        dd($offerIdentifiers = (new OfferIdentifiersCache())->get('srch_0be22277-3edc-433b-8132-2ca292a8a054'));
+
         $dto = $input instanceof SearchRequestDTO
             ? $input
             : new SearchRequestDTO(
