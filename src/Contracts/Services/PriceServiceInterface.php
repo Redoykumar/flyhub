@@ -7,5 +7,5 @@ use Redoy\FlyHub\DTOs\Responses\PriceResponseDTO;
 
 interface PriceServiceInterface
 {
-    public function getPrice(PriceRequestDTO $request): PriceResponseDTO;
+    public function price(array $request): PriceResponseDTO;
 }

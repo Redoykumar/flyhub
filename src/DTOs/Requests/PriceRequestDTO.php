@@ -2,41 +2,60 @@
 
 namespace Redoy\FlyHub\DTOs\Requests;
 
-use Illuminate\Http\Request as HttpRequest;
+use Illuminate\Support\Facades\Validator;
 
 class PriceRequestDTO
 {
+    public string $searchId;
     public string $offerId;
-    /** @var string[] */
-    public array $flightIds;
-    public ?string $currency;
-    public ?int $passengerCount;
 
-    public function __construct(
-        string $offerId,
-        array $flightIds = [],
-        ?string $currency = 'USD',
-        ?int $passengerCount = 1
-    ) {
-        $this->offerId = $offerId;
-        $this->flightIds = $flightIds;
-        $this->currency = $currency;
-        $this->passengerCount = $passengerCount;
+    /**
+     * Initialize the DTO with search_id and offer_id.
+     *
+     * @param array $data
+     */
+    public function __construct(array $data)
+    {
+        $this->validate($data);
+
+        $this->searchId = $data['search_id'];
+        $this->offerId = $data['offer_id'];
     }
 
-    public static function fromInput($input): self
+    /**
+     * Validate the input data using Laravel Validator.
+     *
+     * @param array $data
+     */
+    private function validate(array $data): void
     {
-        if ($input instanceof self) {
-            return $input;
+        $validator = Validator::make($data, [
+            'search_id' => ['required', 'string'],
+            'offer_id' => ['required', 'string'],
+        ]);
+
+        if ($validator->fails()) {
+            throw new \Exception('Validation failed: ' . implode(', ', $validator->errors()->all()));
         }
+    }
 
-        $data = $input instanceof HttpRequest ? $input->all() : (is_array($input) ? $input : []);
+    /**
+     * Get the search ID.
+     *
+     * @return string
+     */
+    public function getSearchId(): string
+    {
+        return $this->searchId;
+    }
 
-        return new self(
-            $data['offerId'] ?? '',
-            $data['flightIds'] ?? $data['flight_ids'] ?? [],
-            $data['currency'] ?? 'USD',
-            $data['passengerCount'] ?? $data['passenger_count'] ?? 1
-        );
+    /**
+     * Get the offer ID.
+     *
+     * @return string
+     */
+    public function getOfferId(): string
+    {
+        return $this->offerId;
     }
 }

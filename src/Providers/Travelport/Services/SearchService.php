@@ -33,7 +33,6 @@ class SearchService implements SearchServiceInterface
             ->request('POST', '/catalog/search/catalogproductofferings')
             ->withBody($payload)
             ->send();
-
         // Transform the response data using SearchTransformer
         $transformedData = (new SearchTransformer($response->json(), $request))->transform();
 
@@ -135,8 +134,8 @@ class SearchService implements SearchServiceInterface
                 'CatalogProductOfferingsRequest' => [
                     '@type' => 'CatalogProductOfferingsRequestAir',
                     'offersPerPage' => 15,
-                    'maxNumberOfUpsellsToReturn' => 4,
-                    'contentSourceList' => ['GDS'],
+                    'maxNumberOfUpsellsToReturn' => 0,
+                    'contentSourceList' => ['NDC'],
                     'PassengerCriteria' => $passengerCriteria,
                     'SearchCriteriaFlight' => $searchCriteriaFlight,
                 ],

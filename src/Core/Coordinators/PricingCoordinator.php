@@ -1,47 +1,38 @@
 <?php
-
 namespace Redoy\FlyHub\Core\Coordinators;
 
-use Redoy\FlyHub\Core\FlyHubManager;
+use Redoy\FlyHub\Cache\OfferIdentifiersCache;
 use Redoy\FlyHub\DTOs\Requests\PriceRequestDTO;
 use Redoy\FlyHub\DTOs\Responses\PriceResponseDTO;
+use Redoy\FlyHub\Contracts\Services\PriceServiceInterface;
 
 class PricingCoordinator
 {
-    protected $manager;
+    protected $offerIdentifiersCache;
 
-    public function __construct(FlyHubManager $manager)
+    public function __construct()
     {
-        $this->manager = $manager;
+        $this->offerIdentifiersCache = new OfferIdentifiersCache();
     }
 
-    public function getPrice(PriceRequestDTO $request): PriceResponseDTO
+    public function price(PriceRequestDTO $dto): PriceResponseDTO
     {
-        // Get the provider name and config from FlyHubManager
-        $providerName = config('flyhub.default_provider');
-        $providerConfig = config("flyhub.providers.{$providerName}", []);
+        $searchId = $dto->getSearchId();
+        $offerId = $dto->getOfferId();
 
-        if (empty($providerConfig)) {
-            throw new \Exception("Configuration for provider {$providerName} not found.");
+        $offers = $this->offerIdentifiersCache->get($searchId);
+        if (!isset($offers[$offerId])) {
+            throw new \Exception("Offer ID {$offerId} not found for search ID {$searchId}.");
         }
 
-        // Resolve the client and PriceService class from config
-        $clientClass = $providerConfig['client'] ?? null;
-        $priceServiceClass = $providerConfig['price'] ?? null;
-
-        if (!class_exists($clientClass) || !class_exists($priceServiceClass)) {
-            throw new \Exception("Client or price service class not found for provider {$providerName}.");
+        $offerData = $offers[$offerId];
+        
+        if (!isset($offerData['provider'])) {
+            throw new \Exception("Provider class not defined in offer data for offer ID {$offerId}.");
         }
-
-        // Instantiate the client with config
-        $client = new $clientClass($providerConfig);
-
-        // Instantiate the PriceService with the client
-        $priceService = new $priceServiceClass($client);
-
-        // Fetch pricing data
-        $priceResponse = $priceService->getPrice($request);
-
-        return $priceResponse;
+        $providerConfig = config("flyhub.providers.{$offerData['provider']}", null);
+        $client = new $providerConfig['client']($providerConfig);
+        $priceService = new $providerConfig['price']($client);    
+        return $priceService->price($offerData['offerRef']);
     }
 }

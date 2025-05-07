@@ -84,7 +84,7 @@ class SearchTransformer
     private function createResponse(array $combinations): array
     {
         return [
-            'provider' => 'Travelport',
+            'provider' => 'travelport',
             'flights' => $this->generateFlightOffers($combinations),
             'meta' => [
                 'total' => count($combinations),
@@ -191,12 +191,13 @@ class SearchTransformer
     {
         $sequences = [];
         foreach ($combination as $key => $offer) {
-            $this->offerIdentifiers[$offerId]['offerRef'][] = [
-                'CatalogProductOfferingsIdentifier' => $this->catalogOfferingsId,
+            $this->offerIdentifiers[$offerId]['offerRef']['CatalogProductOfferingsIdentifier'] = $this->catalogOfferingsId;
+            $this->offerIdentifiers[$offerId]['offerRef']['products'][] = [
+                // 'CatalogProductOfferingsIdentifier' => $this->catalogOfferingsId,
                 'CatalogProductOfferingIdentifier' => $offer['id'] ?? '',
                 'ProductIdentifier' => $offer['productRef'] ?? '',
             ];
-            $this->offerIdentifiers[$offerId]['provider'] = config('flyhub.providers.travelport.price', null);
+            $this->offerIdentifiers[$offerId]['provider'] = 'travelport';
 
             $sequences[$key] = [
                 'brand' => isset($offer['Brand']) ? $this->getBrand($offer['Brand']['BrandRef']) : ['name' => 'Unknown'],
