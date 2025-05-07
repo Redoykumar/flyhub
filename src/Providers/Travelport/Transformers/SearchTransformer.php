@@ -1,10 +1,10 @@
 <?php
+
 namespace Redoy\FlyHub\Providers\Travelport\Transformers;
 
 use Ramsey\Uuid\Uuid;
-use Illuminate\Support\Facades\Cache;
 use Redoy\FlyHub\Helpers\SimplifyNumber;
-
+use Redoy\FlyHub\Cache\OfferIdentifiersCache;
 
 /**
  * Transforms Travelport API response data into a structured format for flight offers.
@@ -22,18 +22,20 @@ class SearchTransformer
     private array $combinationsBySequence = [];
     private array $combinationsByCode = [];
     private array $offerIdentifiers = [];
+    private OfferIdentifiersCache $offerIdentifiersCache;
 
     /**
-     * Initializes the transformer with API response and request data.
+     * Initializes the transformer with API response, request data, and cache.
      *
      * @param array $responseData API response data
      * @param mixed $request Query request details
+     * @param OfferIdentifiersCache $offerIdentifiersCache Cache handler for offer identifiers
      */
     public function __construct(array $responseData, $request)
     {
-
         $this->responseData = $responseData;
         $this->queryDetails = $request;
+        $this->offerIdentifiersCache = new OfferIdentifiersCache();
         $this->catalogOfferingsId = $responseData['CatalogProductOfferingsResponse']['CatalogProductOfferings']['Identifier']['value'] ?? '';
 
         $referenceList = $responseData['CatalogProductOfferingsResponse']['ReferenceList'] ?? [];
@@ -189,12 +191,12 @@ class SearchTransformer
     {
         $sequences = [];
         foreach ($combination as $key => $offer) {
-            $this->offerIdentifiers[$this->queryDetails->getSearchId()][$offerId][] = [
-                'provider' => 'travelport',
+            $this->offerIdentifiers[$offerId]['offerRef'][] = [
                 'CatalogProductOfferingsIdentifier' => $this->catalogOfferingsId,
                 'CatalogProductOfferingIdentifier' => $offer['id'] ?? '',
                 'ProductIdentifier' => $offer['productRef'] ?? '',
             ];
+            $this->offerIdentifiers[$offerId]['provider'] = config('flyhub.providers.travelport.price', null);
 
             $sequences[$key] = [
                 'brand' => isset($offer['Brand']) ? $this->getBrand($offer['Brand']['BrandRef']) : ['name' => 'Unknown'],
@@ -422,8 +424,9 @@ class SearchTransformer
      */
     private function storeCacheOfferIdentifiers(): void
     {
-        
-        Cache::put( $this->queryDetails->getSearchId(),$this->offerIdentifiers ?? [], now()->addMinutes(30));
-     
+        $this->offerIdentifiersCache->store(
+            $this->queryDetails->getSearchId(),
+            $this->offerIdentifiers ?? []
+        );
     }
 }

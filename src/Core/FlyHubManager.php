@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Redoy\FlyHub\Cache\PriceCache;
 use Redoy\FlyHub\Cache\SearchCache;
 use Illuminate\Support\Facades\Cache;
+use Redoy\FlyHub\Cache\OfferIdentifiersCache;
 use Redoy\FlyHub\DTOs\Requests\PriceRequestDTO;
 use Redoy\FlyHub\DTOs\Requests\SearchRequestDTO;
 use Redoy\FlyHub\Core\Coordinators\SearchCoordinator;
@@ -40,7 +41,7 @@ class FlyHubManager
 
     public function search($input)
     {
-        dd(Cache::get('srch_84b01545-c7ed-4b13-bb73-7be80a17bd46'));
+        dd($offerIdentifiers = (new OfferIdentifiersCache())->get('srch_0be22277-3edc-433b-8132-2ca292a8a054'));
         $dto = $input instanceof SearchRequestDTO
             ? $input
             : new SearchRequestDTO(
