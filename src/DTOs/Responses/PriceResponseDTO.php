@@ -1,22 +1,20 @@
 <?php
-
 namespace Redoy\FlyHub\DTOs\Responses;
-
-use Redoy\FlyHub\DTOs\Shared\FlightSegmentDTO;
 
 class PriceResponseDTO
 {
-    public float $totalPrice;
-    public string $currency;
-    /** @var FlightSegmentDTO[] */
-    public array $flightSegments;
-    public array $meta;
 
-    public function __construct(float $totalPrice, string $currency, array $flightSegments = [], array $meta = [])
+    public array $offers;
+
+    public function __construct(array $offers)
     {
-        $this->totalPrice = $totalPrice;
-        $this->currency = $currency;
-        $this->flightSegments = $flightSegments;
-        $this->meta = $meta;
+        $this->offers = $offers;
+    }
+
+    public function toArray(): array
+    {
+        return [
+            'offers' => $this->offers,
+        ];
     }
 }

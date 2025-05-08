@@ -12,6 +12,11 @@ class SimplifyNumber
      * @param string $duration Duration in ISO 8601 format (e.g., PT2H30M)
      * @return int Duration in minutes
      */
+    public static function airlineImageUrl(string $carrier = null): string
+    {
+        $code = $carrier ?? 'Unknown';
+        return 'https://images.kiwi.com/airlines/64/' . $code . '.png';
+    }
     public static function convertDurationToMinutes(string $duration): int
     {
         if (preg_match('/PT(\d+)H(\d+)?M?/', $duration, $matches)) {

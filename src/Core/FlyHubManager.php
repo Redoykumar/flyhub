@@ -81,15 +81,11 @@ class FlyHubManager
             : new PriceRequestDTO(
                 $input instanceof Request ? $input->all() : (is_array($input) ? $input : [])
             );
-
-
-
         // Call PricingCoordinator with cached search result
         $coordinator = new PricingCoordinator();
         $priceResponse = $coordinator->price($dto);
-
         // Add meta
-        $priceResponse = array_merge($priceResponse, [
+        $priceResponse = array_merge($priceResponse->toArray(), [
             'meta' => [
                 'search_id' => $dto->getSearchId(),
             ],
@@ -98,7 +94,7 @@ class FlyHubManager
         // You may cache the price again if needed
         // $this->priceCache->put($dto, $priceResponse);
 
-        $this->setResults($priceResponse['data'], $priceResponse['meta']);
+        $this->setResults($priceResponse['offers'], $priceResponse['meta']);
         return $this;
     }
 
@@ -137,7 +133,6 @@ class FlyHubManager
     }
     public function display()
     {
-        dd(1);
         return $this->getResults();
     }
     public function filters()

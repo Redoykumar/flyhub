@@ -19,7 +19,6 @@ class PricingCoordinator
     {
         $searchId = $dto->getSearchId();
         $offerId = $dto->getOfferId();
-
         $offers = $this->offerIdentifiersCache->get($searchId);
         if (!isset($offers[$offerId])) {
             throw new \Exception("Offer ID {$offerId} not found for search ID {$searchId}.");
