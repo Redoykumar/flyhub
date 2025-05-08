@@ -63,44 +63,16 @@ class PriceService implements PriceServiceInterface
     public function price(array $request): PriceResponseDTO
     {
 
-        // dd($request);
+
         $payload = $this->buildBody($request);
-        $data = [
-            'OfferQueryBuildFromCatalogProductOfferings' => [
-                'BuildFromCatalogProductOfferingsRequest' => [
-                    '@type' => 'BuildFromCatalogProductOfferingsRequestAir',
-                    'CatalogProductOfferingsIdentifier' => [
-                        'Identifier' => [
-                            'value' => 'b06fb4ab-07e4-4d6c-a11a-44f670d85374',
-                        ],
-                    ],
-                    'CatalogProductOfferingSelection' => [
-                        [
-                            'CatalogProductOfferingIdentifier' => [
-                                'Identifier' => [
-                                    'value' => 'EK_CPO0',
-                                ],
-                            ],
-                            'ProductIdentifier' => [
-                                [
-                                    'Identifier' => [
-                                        'value' => 'EKp0',
-                                    ],
-                                ],
-                            ],
-                        ],
-                    ],
-                    'validateInventoryInd' => true,
-                ],
-            ],
-        ];
+  
         // Send the request to Travelport API
         $response = $this->client
             ->request('POST', '/price/offers/buildfromcatalogproductofferings')
-            ->withBody($data)
+            ->withBody($payload)
             ->send();
 
-        dd($response->json());
+
         // Check if the response is successful
         if (!$response->successful()) {
             throw new \Exception('Travelport API pricing request failed: ' . $response->body());

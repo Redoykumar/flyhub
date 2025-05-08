@@ -33,6 +33,7 @@ class SearchService implements SearchServiceInterface
             ->request('POST', '/catalog/search/catalogproductofferings')
             ->withBody($payload)
             ->send();
+        // dd($response->json());
         // Transform the response data using SearchTransformer
         $transformedData = (new SearchTransformer($response->json(), $request))->transform();
 
