@@ -281,13 +281,9 @@ class BookingTransformer
 
     private function extractConfirmation(array $receipt): array
     {
-        $confirmation = $receipt['Confirmation'] ?? [];
         $locator = $confirmation['Locator'] ?? [];
 
         return [
-            'id' => $receipt['Identifier']['value'] ?? null,
-            'type' => $confirmation['@type'] ?? 'ConfirmationHold',
-            'source' => $locator['source'] ?? null,
             'creation_date' => $locator['creationDate'] ?? null,
         ];
     }
