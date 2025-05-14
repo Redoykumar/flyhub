@@ -8,6 +8,7 @@ return [
             'client' => \Redoy\FlyHub\Providers\Travelport\TravelportClient::class,
             'search' => \Redoy\FlyHub\Providers\Travelport\Services\SearchService::class,
             'price' => \Redoy\FlyHub\Providers\Travelport\Services\PriceService::class,
+            'book' => \Redoy\FlyHub\Providers\Travelport\Services\BookingService::class,
             'environment' => env('TRAVELPORT_ENV', 'preproduction'), // preproduction | production
             'base_urls' => [
                 'preproduction' => 'https://api.pp.travelport.com/11/air',

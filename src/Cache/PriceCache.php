@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Cache;
 class PriceCache
 {
     protected $prefix = 'flyhub_price_';
-    protected $ttl = 24;
+    protected $ttl = 3600;
 
     public function has(string $offerId): bool
     {

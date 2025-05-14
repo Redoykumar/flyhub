@@ -8,7 +8,9 @@ use Redoy\FlyHub\Cache\SearchCache;
 use Redoy\FlyHub\Cache\OfferIdentifiersCache;
 use Redoy\FlyHub\DTOs\Requests\PriceRequestDTO;
 use Redoy\FlyHub\DTOs\Requests\SearchRequestDTO;
+use Redoy\FlyHub\DTOs\Requests\BookingRequestDTO;
 use Redoy\FlyHub\Core\Coordinators\SearchCoordinator;
+use Redoy\FlyHub\Core\Coordinators\BookingCoordinator;
 use Redoy\FlyHub\Core\Coordinators\PricingCoordinator;
 
 
@@ -98,6 +100,27 @@ class FlyHubManager
         return $this;
     }
 
+    public function book($input)
+    {
+        // Step 1: Normalize input to BookingRequestDTO
+        $dto = $input instanceof BookingRequestDTO
+            ? $input
+            : new BookingRequestDTO(
+                $input instanceof Request ? $input->all() : (is_array($input) ? $input : [])
+            );
+
+        // Step 2: Pass DTO to BookingCoordinator
+        $coordinator = new BookingCoordinator();
+
+        // Step 3: Process the booking logic
+        $result = $coordinator->book($dto);
+
+        // Step 4: Return or format response
+        return response()->json([
+            'status' => 'success',
+            'data' => $result,
+        ]);
+    }
 
 
     public function getProviderClass()

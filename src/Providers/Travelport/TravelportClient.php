@@ -1,146 +1,327 @@
 <?php
-
 namespace Redoy\FlyHub\Providers\Travelport;
 
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Http;
+use RuntimeException;
+use InvalidArgumentException;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Client\Response;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Cache;
+
+class CircuitBreakerOpenException extends RuntimeException
+{
+}
 
 class TravelportClient
 {
-    protected string $baseUrl;
-    protected string $authUrl;
-    protected array $config;
+    private const SUPPORTED_METHODS = ['get', 'post', 'put', 'delete'];
+    private const REQUIRED_CONFIG_KEYS = ['username', 'password', 'client_id', 'client_secret', 'access_group'];
+    private const TOKEN_CACHE_KEY = 'travelport_token';
+    private const TOKEN_CACHE_TTL = 82800; // 23 hours
+    private const CIRCUIT_BREAKER_KEY = 'travelport_circuit_breaker';
+    private const CIRCUIT_BREAKER_STATES = ['CLOSED', 'OPEN', 'HALF_OPEN'];
 
-    protected string $method = 'post';
-    protected string $endpoint = '';
-    protected array $headers = [];
-    protected array $params = [];  // For GET request parameters
-    protected array $body = [];    // For POST request body
+    private string $baseUrl;
+    private string $authUrl;
+    private array $config;
+    private string $method = 'post';
+    private string $endpoint = '';
+    private array $headers = [];
+    private array $params = [];
+    private ?array $body = null;
+
+    // Circuit breaker settings (configurable via $config)
+    private int $failureThreshold;
+    private int $openTimeoutSeconds;
+    private int $halfOpenAttempts;
+
+    // Timeout and retry settings (configurable via $config)
+    private int $connectTimeout;
+    private int $requestTimeout;
+    private int $maxRetries;
+    private int $retryDelayMs;
 
     public function __construct(array $config)
     {
+        $this->validateConfig($config);
         $this->config = $config;
+        $env = $config['environment'] ?? 'preproduction';
+        $this->baseUrl = rtrim($config['base_urls'][$env] ?? 'https://api.pp.travelport.com/11/', '/');
+        $this->authUrl = $config['auth_urls'][$env] ?? 'https://oauth.pp.travelport.com/oauth/oauth20/token';
 
-        $env = $this->config['environment'] ?? 'preproduction';
-        $this->baseUrl = $this->config['base_urls'][$env] ?? 'https://api.pp.travelport.com/11/air';
-        $this->authUrl = $this->config['auth_urls'][$env] ?? 'https://oauth.pp.travelport.com/oauth/oauth20/token';
+        // Circuit breaker defaults
+        $this->failureThreshold = $config['circuit_breaker']['failure_threshold'] ?? 5;
+        $this->openTimeoutSeconds = $config['circuit_breaker']['open_timeout_seconds'] ?? 60;
+        $this->halfOpenAttempts = $config['circuit_breaker']['half_open_attempts'] ?? 1;
+
+        // Timeout and retry defaults
+        $this->connectTimeout = $config['timeout']['connect'] ?? 5; // seconds
+        $this->requestTimeout = $config['timeout']['request'] ?? 15; // seconds
+        $this->maxRetries = $config['retry']['max_attempts'] ?? 3;
+        $this->retryDelayMs = $config['retry']['delay_ms'] ?? 100;
     }
 
-    /**
-     * Retrieve the access token for the Travelport API.
-     * This token is cached for 23 hours.
-     *
-     * @return string
-     * @throws \Exception
-     */
-    protected function getToken(): string
-    {
-        return Cache::remember('travelport_token', 82800, function () {
-            $response = Http::asForm()->post($this->authUrl, [
-                'grant_type' => 'password',
-                'username' => $this->config['username'],
-                'password' => $this->config['password'],
-                'client_id' => $this->config['client_id'],
-                'client_secret' => $this->config['client_secret'],
-                'scope' => 'openid',
-            ]);
-
-            if (!$response->successful()) {
-                throw new \Exception('Travelport OAuth failed: ' . $response->body());
-            }
-
-            return $response->json('access_token');
-        });
-    }
-
-    /**
-     * Set custom headers for the request.
-     *
-     * @param array $headers
-     * @return self
-     */
     public function withHeaders(array $headers): self
     {
-        $this->headers = array_merge($this->headers, $headers);
+        $this->headers = $headers + $this->headers;
         return $this;
     }
 
-    /**
-     * Set query parameters for GET requests.
-     *
-     * @param array $params
-     * @return self
-     */
     public function withParams(array $params): self
     {
         $this->params = $params;
         return $this;
     }
 
-    /**
-     * Set the HTTP request method and endpoint.
-     *
-     * @param string $method
-     * @param string $endpoint
-     * @return self
-     */
     public function request(string $method, string $endpoint): self
     {
-        $this->method = strtolower($method);
-        $this->endpoint = $endpoint;
+        $method = strtolower($method);
+        if (!in_array($method, self::SUPPORTED_METHODS, true)) {
+            throw new InvalidArgumentException("Unsupported HTTP method: {$method}");
+        }
+        if (empty($endpoint)) {
+            throw new InvalidArgumentException('Endpoint cannot be empty');
+        }
+
+        $this->method = $method;
+        $this->endpoint = ltrim($endpoint, '/');
+        $this->body = null;
         return $this;
     }
 
-    /**
-     * Set the body (payload) for POST requests.
-     *
-     * @param array $body
-     * @return self
-     */
     public function withBody(array $body): self
     {
         $this->body = $body;
         return $this;
     }
 
-    /**
-     * Perform the API request.
-     *
-     * @return Response
-     * @throws \Exception
-     */
     public function send(): Response
     {
-        $token = $this->getToken();
+        try {
+            $this->checkCircuitBreaker();
 
-        // Prepare headers
-        $headers = array_merge($this->headers, [
-            'Accept' => 'application/json',
-            'Content-Type' => 'application/json',
-            'Accept-Version' => '11',
-            'Content-Version' => '11',
-            'XAUTH_TRAVELPORT_ACCESSGROUP' => $this->config['access_group'] ?? '',
-            'taxBreakDown' => 'false',
-        ]);
+            $url = "{$this->baseUrl}/{$this->endpoint}";
+            $headers = $this->buildHeaders();
+            $http = $this->buildHttpClient($headers);
 
-        // Log the request for debugging
-        \Log::info('Travelport API Request', [
-            'url' => "{$this->baseUrl}{$this->endpoint}",
-            'method' => $this->method,
-            'headers' => $headers,
-            'params' => $this->params,
-            'body' => $this->body,
-        ]);
+            $this->logRequest($url, $headers);
 
-        // Make the HTTP request with parameters (for GET) or body (for POST)
-        if ($this->method === 'get') {
-            return Http::withToken($token)->withHeaders($headers)
-                ->get("{$this->baseUrl}{$this->endpoint}", $this->params);
-        } else { // POST, PUT, DELETE, etc.
-            return Http::withToken($token)->withHeaders($headers)
-                ->withBody(json_encode($this->body), 'application/json')
-                ->post("{$this->baseUrl}{$this->endpoint}", $this->body);
+            $response = $this->executeRequestWithRetries($http, $url);
+
+            $this->updateCircuitBreaker($response->successful());
+            $this->logResponse($url, $response);
+
+            return $response;
+        } catch (CircuitBreakerOpenException $e) {
+            $this->logException($url, $e);
+            throw $e;
+        } catch (\Exception $e) {
+            $this->updateCircuitBreaker(false);
+            $this->logException($url, $e);
+            throw new RuntimeException("API request failed: {$e->getMessage()}", 0, $e);
         }
+    }
+
+    private function validateConfig(array $config): void
+    {
+        foreach (self::REQUIRED_CONFIG_KEYS as $key) {
+            if (empty($config[$key])) {
+                throw new InvalidArgumentException("Missing required configuration key: {$key}");
+            }
+        }
+    }
+
+    private function getToken(): string
+    {
+        return Cache::remember(self::TOKEN_CACHE_KEY, self::TOKEN_CACHE_TTL, function () {
+            $response = Http::asForm()
+                ->timeout($this->requestTimeout)
+                ->connectTimeout($this->connectTimeout)
+                ->post($this->authUrl, [
+                    'grant_type' => 'password',
+                    'username' => $this->config['username'],
+                    'password' => $this->config['password'],
+                    'client_id' => $this->config['client_id'],
+                    'client_secret' => $this->config['client_secret'],
+                    'scope' => 'openid',
+                ]);
+
+            if (!$response->successful()) {
+                throw new RuntimeException("OAuth failed: {$response->body()}");
+            }
+
+            $token = $response->json('access_token');
+            if (!$token) {
+                throw new RuntimeException('Access token not found');
+            }
+
+            return $token;
+        });
+    }
+
+    private function buildHeaders(): array
+    {
+        static $defaultHeaders = null;
+        if ($defaultHeaders === null) {
+            $defaultHeaders = [
+                'Accept' => 'application/json',
+                'Content-Type' => 'application/json',
+                'X-API-Version' => '11',
+            ];
+        }
+
+        return [
+            'Authorization' => 'Bearer ' . $this->getToken(),
+            'XAUTH_TRAVELPORT_ACCESSGROUP' => $this->config['access_group'],
+        ] + $defaultHeaders + $this->headers;
+    }
+
+    private function buildHttpClient(array $headers): \Illuminate\Http\Client\PendingRequest
+    {
+        return Http::withHeaders($headers)
+            ->timeout($this->requestTimeout)
+            ->connectTimeout($this->connectTimeout)
+            ->withOptions(['http_errors' => false]);
+    }
+
+    private function executeRequestWithRetries(\Illuminate\Http\Client\PendingRequest $http, string $url): Response
+    {
+        $attempt = 0;
+        $lastException = null;
+
+        while ($attempt++ < $this->maxRetries) {
+            try {
+                $response = $this->executeRequest($http, $url);
+                if ($response->successful() || !in_array($response->status(), [429, 503], true)) {
+                    return $response;
+                }
+                $lastException = new RuntimeException("Request failed with status {$response->status()}");
+            } catch (\Exception $e) {
+                $lastException = $e;
+            }
+
+            if ($attempt < $this->maxRetries) {
+                $delay = $this->retryDelayMs * (2 ** ($attempt - 1));
+                Log::warning('Retrying Travelport API request', [
+                    'url' => $url,
+                    'attempt' => $attempt,
+                    'delay_ms' => $delay,
+                    'error' => $lastException->getMessage(),
+                ]);
+                usleep($delay * 1000);
+            }
+        }
+
+        throw $lastException ?? new RuntimeException('Max retries reached');
+    }
+
+    private function executeRequest(\Illuminate\Http\Client\PendingRequest $http, string $url): Response
+    {
+        $body = $this->getRequestBody();
+        switch ($this->method) {
+            case 'get':
+                return $http->get($url, $this->params);
+            case 'post':
+                return $http->post($url, $body);
+            case 'put':
+                return $http->put($url, $body);
+            case 'delete':
+                return $http->delete($url, empty($body) ? $this->params : $body);
+            default:
+                throw new RuntimeException("Unexpected method: {$this->method}");
+        }
+    }
+
+    private function getRequestBody(): ?array
+    {
+        return is_array($this->body) && !empty($this->body) ? $this->body : null;
+    }
+
+    private function checkCircuitBreaker(): void
+    {
+        $state = Cache::get(self::CIRCUIT_BREAKER_KEY . ':state', 'CLOSED');
+        $failures = Cache::get(self::CIRCUIT_BREAKER_KEY . ':failures', 0);
+        $lastAttempt = Cache::get(self::CIRCUIT_BREAKER_KEY . ':last_attempt', 0);
+
+        if ($state === 'OPEN' && (time() - $lastAttempt) < $this->openTimeoutSeconds) {
+            throw new CircuitBreakerOpenException('Circuit breaker is open');
+        }
+
+        if ($state === 'OPEN') {
+            Cache::put(self::CIRCUIT_BREAKER_KEY . ':state', 'HALF_OPEN', $this->openTimeoutSeconds);
+            Cache::put(self::CIRCUIT_BREAKER_KEY . ':half_open_attempts', 0, $this->openTimeoutSeconds);
+        }
+
+        if ($state === 'HALF_OPEN') {
+            $attempts = Cache::increment(self::CIRCUIT_BREAKER_KEY . ':half_open_attempts');
+            if ($attempts > $this->halfOpenAttempts) {
+                Cache::put(self::CIRCUIT_BREAKER_KEY . ':state', 'OPEN', $this->openTimeoutSeconds);
+                Cache::put(self::CIRCUIT_BREAKER_KEY . ':last_attempt', time(), $this->openTimeoutSeconds);
+                throw new CircuitBreakerOpenException('Circuit breaker remains open after half-open attempts');
+            }
+        }
+    }
+
+    private function updateCircuitBreaker(bool $success): void
+    {
+        $state = Cache::get(self::CIRCUIT_BREAKER_KEY . ':state', 'CLOSED');
+        $failures = Cache::get(self::CIRCUIT_BREAKER_KEY . ':failures', 0);
+
+        if ($success) {
+            if ($state !== 'CLOSED') {
+                Cache::put(self::CIRCUIT_BREAKER_KEY . ':state', 'CLOSED', $this->openTimeoutSeconds);
+                Cache::put(self::CIRCUIT_BREAKER_KEY . ':failures', 0, $this->openTimeoutSeconds);
+                Log::info('Circuit breaker reset to CLOSED');
+            }
+        } else {
+            $failures = Cache::increment(self::CIRCUIT_BREAKER_KEY . ':failures');
+            if ($state === 'HALF_OPEN' || ($state === 'CLOSED' && $failures >= $this->failureThreshold)) {
+                Cache::put(self::CIRCUIT_BREAKER_KEY . ':state', 'OPEN', $this->openTimeoutSeconds);
+                Cache::put(self::CIRCUIT_BREAKER_KEY . ':last_attempt', time(), $this->openTimeoutSeconds);
+                Log::warning('Circuit breaker opened', ['failures' => $failures]);
+            }
+        }
+    }
+
+    private function logRequest(string $url, array $headers): void
+    {
+        Log::info('Travelport API Request', [
+            'url' => $url,
+            'method' => $this->method,
+            'headers' => $this->sanitizeHeaders($headers),
+            'params' => $this->params ?: null,
+            'body' => $this->body ? (strlen(json_encode($this->body)) > 1000 ? '[TRUNCATED]' : $this->body) : null,
+        ]);
+    }
+
+    private function logResponse(string $url, Response $response): void
+    {
+        $body = $response->body();
+        $logData = [
+            'url' => $url,
+            'method' => $this->method,
+            'status' => $response->status(),
+            'body' => strlen($body) > 1000 ? '[TRUNCATED]' : $body,
+        ];
+        $response->successful() ? Log::info('Travelport API Response', $logData) : Log::error('Travelport API Response Failed', $logData);
+    }
+
+    private function logException(string $url, \Exception $e): void
+    {
+        Log::error('Travelport API Request Exception', [
+            'url' => $url,
+            'method' => $this->method,
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString(),
+        ]);
+    }
+
+    private function sanitizeHeaders(array $headers): array
+    {
+        $sanitized = $headers;
+        if (isset($sanitized['Authorization'])) {
+            $sanitized['Authorization'] = 'Bearer [REDACTED]';
+        }
+        return $sanitized;
     }
 }

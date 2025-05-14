@@ -1,6 +1,6 @@
 <?php
 
-namespace FlyHub\DTOs\Requests;
+namespace Redoy\FlyHub\DTOs\Requests;
 
 class PaymentRequestDTO
 {

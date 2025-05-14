@@ -22,7 +22,7 @@ class OfferIdentifiersCache
      */
     public function __construct(?int $defaultTtlMinutes = null)
     {
-        $this->defaultTtlMinutes = $defaultTtlMinutes ?? config('flyhub.cache.offer_identifiers_ttl', 25);
+        $this->defaultTtlMinutes = $defaultTtlMinutes ?? config('flyhub.cache.offer_identifiers_ttl', 300);
     }
 
     /**

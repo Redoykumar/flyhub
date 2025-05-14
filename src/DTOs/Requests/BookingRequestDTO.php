@@ -1,71 +1,82 @@
 <?php
 
-namespace FlyHub\DTOs\Requests;
+namespace Redoy\FlyHub\DTOs\Requests;
 
-use FlyHub\DTOs\Shared\PassengerDTO;
+use Redoy\FlyHub\DTOs\Shared\PassengerDTO;
 
 class BookingRequestDTO
 {
-    /**
-     * The unique identifier of the offer to book.
-     *
-     * @var string
-     */
-    public $offerId;
+    public string $offerId;
+    public string $searchId;
+    public ?string $offerRef = null;
+    public array $passengers = [];
+    public string $contactEmail;
+    public string $contactPhone;
 
-    /**
-     * Array of passengers for the booking.
-     *
-     * @var PassengerDTO[]
-     */
-    public $passengers;
-
-    /**
-     * Contact email for the booking.
-     *
-     * @var string
-     */
-    public $contactEmail;
-
-    /**
-     * Contact phone number for the booking.
-     *
-     * @var string
-     */
-    public $contactPhone;
-
-    /**
-     * BookingRequestDTO constructor.
-     *
-     * @param array $data Associative array of booking request data.
-     * @throws \InvalidArgumentException If required fields are missing or invalid.
-     */
     public function __construct(array $data)
     {
-        // Validate and set offerId
-        if (empty($data['offerId']) || !is_string($data['offerId'])) {
-            throw new \InvalidArgumentException('Offer ID is required and must be a string.');
+        if (empty($data['offer_id']) || empty($data['search_id'])) {
+            throw new \InvalidArgumentException('Both offer_id and search_id are required.');
         }
-        $this->offerId = $data['offerId'];
 
-        // Validate and set passengers
+        $this->offerId = $data['offer_id'];
+        $this->searchId = $data['search_id'];
+
         if (empty($data['passengers']) || !is_array($data['passengers'])) {
-            throw new \InvalidArgumentException('At least one passenger is required.');
+            throw new \InvalidArgumentException('Passengers are required.');
         }
-        // $this->passengers = array_map(function ($passenger) {
-        //     return $passenger instanceof PassengerDTO ? $passenger : new PassengerDTO($passenger);
-        // }, $data['passengers']);
 
-        // Validate and set contactEmail
-        if (empty($data['contactEmail']) || !filter_var($data['contactEmail'], FILTER_VALIDATE_EMAIL)) {
-            throw new \InvalidArgumentException('A valid contact email is required.');
+        foreach ($data['passengers'] as $passenger) {
+            $this->passengers[] = new PassengerDTO($passenger);
         }
-        $this->contactEmail = $data['contactEmail'];
 
-        // Validate and set contactPhone
-        if (empty($data['contactPhone']) || !is_string($data['contactPhone'])) {
-            throw new \InvalidArgumentException('Contact phone number is required and must be a string.');
+        if (empty($data['contact']['email']) || empty($data['contact']['phone'])) {
+            throw new \InvalidArgumentException('Contact email and phone are required.');
         }
-        $this->contactPhone = $data['contactPhone'];
+
+        $this->contactEmail = $data['contact']['email'];
+        $this->contactPhone = $data['contact']['phone'];
+    }
+
+    /**
+     * Get the search ID.
+     */
+    public function getSearchId(): string
+    {
+        return $this->searchId;
+    }
+
+    /**
+     * Get the offer ID.
+     */
+    public function getOfferId(): string
+    {
+        return $this->offerId;
+    }
+
+    /**
+     * Get the passengers.
+     *
+     * @return PassengerDTO[]
+     */
+    public function getPassengers(): array
+    {
+        return $this->passengers;
+    }
+
+    /**
+     * Get the contact email.
+     */
+    public function getContactEmail(): string
+    {
+        return $this->contactEmail;
+    }
+
+    /**
+     * Get the contact phone.
+     */
+    public function getContactPhone(): string
+    {
+        return $this->contactPhone;
     }
 }

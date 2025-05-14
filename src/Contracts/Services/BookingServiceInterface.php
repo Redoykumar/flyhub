@@ -1,9 +1,11 @@
 <?php
 
-namespace FlyHub\Contracts\Services;
+namespace Redoy\FlyHub\Contracts\Services;
 
-use FlyHub\DTOs\Requests\BookingRequestDTO;
-use FlyHub\DTOs\Responses\BookingResponseDTO;
+use Redoy\FlyHub\DTOs\Requests\BookingRequestDTO;
+use Redoy\FlyHub\DTOs\Responses\BookingResponseDTO;
+
+
 
 interface BookingServiceInterface
 {
@@ -14,5 +16,5 @@ interface BookingServiceInterface
      * @return BookingResponseDTO The booking response data.
      * @throws \FlyHub\Exceptions\BookingFailedException If the booking process fails.
      */
-    public function book(BookingRequestDTO $request): BookingResponseDTO;
+    public function book(BookingRequestDTO $request, array $data): BookingResponseDTO;
 }
