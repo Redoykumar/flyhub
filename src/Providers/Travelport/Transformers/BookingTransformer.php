@@ -55,7 +55,56 @@ class BookingTransformer
 
     private function extractStatus(array $reservation): string
     {
-        return $reservation['Status'] ?? ($this->responseData['ReservationResponse']['Result']['status'] ?? 'Unknown');
+        $status = $reservation['Status'] ?? null;
+        $resultStatus = $this->responseData['ReservationResponse']['Result']['status'] ?? null;
+        $confirmationType = $reservation['Receipt'][0]['Confirmation']['@type'] ?? null;
+        $errors = $this->responseData['ReservationResponse']['Result']['errors'] ?? [];
+
+        // Standardized status mapping
+        $statusMap = [
+            'Confirmed' => 'Confirmed',
+            'Pending' => 'Pending',
+            'Hold' => 'Hold',
+            'Failed' => 'Failed',
+            'Cancelled' => 'Cancelled',
+            'ConfirmationHold' => 'Hold', // From Receipt['Confirmation']['@type']
+        ];
+
+        // Check confirmation type first (e.g., ConfirmationHold)
+        if ($confirmationType === 'ConfirmationHold') {
+            return 'Hold';
+        }
+
+        // Check reservation status
+        if ($status && isset($statusMap[$status])) {
+            return $statusMap[$status];
+        }
+
+        // Check result status
+        if ($resultStatus && isset($statusMap[$resultStatus])) {
+            return $statusMap[$resultStatus];
+        }
+
+        // Check for errors indicating failure or cancellation
+        if (!empty($errors)) {
+            foreach ($errors as $error) {
+                $message = strtolower($error['message'] ?? '');
+                if (stripos($message, 'cancel') !== false) {
+                    return 'Cancelled';
+                }
+                if (stripos($message, 'fail') !== false || stripos($message, 'error') !== false) {
+                    return 'Failed';
+                }
+            }
+        }
+
+        // Default to Unknown
+        \Log::warning('BookingTransformer: Unknown status', [
+            'reservation_status' => $status,
+            'result_status' => $resultStatus,
+            'confirmation_type' => $confirmationType,
+        ]);
+        return 'Unknown';
     }
 
 
