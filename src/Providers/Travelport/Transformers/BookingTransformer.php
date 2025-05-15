@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Log;
 use Redoy\FlyHub\Helpers\SimplifyNumber;
 use Redoy\FlyHub\DTOs\Requests\BookingRequestDTO;
 use Redoy\FlyHub\DTOs\Responses\BookingResponseDTO;
+use Carbon\Carbon;
 
 class BookingTransformer
 {
@@ -67,7 +68,7 @@ class BookingTransformer
             'Hold' => 'Hold',
             'Failed' => 'Failed',
             'Cancelled' => 'Cancelled',
-            'ConfirmationHold' => 'Hold', // From Receipt['Confirmation']['@type']
+            'ConfirmationHold' => 'Hold',
         ];
 
         // Check confirmation type first (e.g., ConfirmationHold)
@@ -99,14 +100,13 @@ class BookingTransformer
         }
 
         // Default to Unknown
-        \Log::warning('BookingTransformer: Unknown status', [
+        Log::warning('BookingTransformer: Unknown status', [
             'reservation_status' => $status,
             'result_status' => $resultStatus,
             'confirmation_type' => $confirmationType,
         ]);
         return 'Unknown';
     }
-
 
     private function extractTravelers(array $travelers): array
     {
@@ -237,8 +237,6 @@ class BookingTransformer
         }, $stops);
     }
 
-
-
     private function extractPrice(array $cache): array
     {
         $price = $cache['price'] ?? [
@@ -281,10 +279,29 @@ class BookingTransformer
 
     private function extractConfirmation(array $receipt): array
     {
+        $confirmation = $receipt['Confirmation'] ?? [];
         $locator = $confirmation['Locator'] ?? [];
+        $confirmationType = $confirmation['@type'] ?? 'ConfirmationHold';
+        $creationDate = $locator['creationDate'] ?? null;
+
+        $expiresAt = null;
+        if ($confirmationType === 'ConfirmationHold') {
+            try {
+                $baseTime = $creationDate ? Carbon::parse($creationDate) : Carbon::now('Asia/Dhaka');
+                $expiresAt = $baseTime->addMinutes(30)->toIso8601String();
+            } catch (\Exception $e) {
+                Log::warning('BookingTransformer: Failed to calculate expires_at', [
+                    'creation_date' => $creationDate,
+                    'error' => $e->getMessage(),
+                ]);
+                $expiresAt = Carbon::now('Asia/Dhaka')->addMinutes(30)->toIso8601String();
+            }
+        }
 
         return [
-            'creation_date' => $locator['creationDate'] ?? null,
+            'type' => $confirmationType,
+            'creation_date' => $creationDate,
+            'expires_at' => $expiresAt,
         ];
     }
 }
