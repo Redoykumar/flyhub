@@ -34,12 +34,12 @@ class BookingTransformer
 
         return new BookingResponseDTO([
             'id' => $this->extractId($reservation),
-            'pnr' => $this->extractPnr($reservation),
+            'pnr' => $this->extractLocatorCode($reservation),
             'status' => $this->extractStatus($reservation),
             'travelers' => $this->extractTravelers($reservation['Traveler'] ?? []),
             'sequences' => $this->extractSequences($reservation['Offer'][0] ?? [], $this->cache),
             'price' => $this->extractPrice($this->cache),
-            'confirmation' => $this->extractConfirmation($reservation['Receipt'][0] ?? []),
+            'confirmation' => $this->extractConfirmation(end($reservation['Receipt']) ?? []),
             'provider' => 'travelport',
         ]);
     }
@@ -49,9 +49,22 @@ class BookingTransformer
         return $reservation['Identifier']['value'] ?? null;
     }
 
-    private function extractPnr(array $reservation): ?string
+    private function extractLocatorCode(array $reservation, int $version = 6): ?string
     {
-        return $reservation['Receipt'][0]['Confirmation']['Locator']['value'] ?? null;
+        if (!isset($reservation['Receipt']) || !is_array($reservation['Receipt'])) {
+            return null;
+        }
+
+        foreach ($reservation['Receipt'] as $receipt) {
+            if (
+                ($version === 6 && ($receipt['Confirmation']['Locator']['source'] ?? null) === '1G') ||
+                ($version !== 6 && ($receipt['Identifier']['authority'] ?? null) === 'Travelport')
+            ) {
+                return $receipt['Confirmation']['Locator']['value'] ?? null;
+            }
+        }
+
+        return null;
     }
 
     private function extractStatus(array $reservation): string
@@ -279,6 +292,7 @@ class BookingTransformer
 
     private function extractConfirmation(array $receipt): array
     {
+
         $confirmation = $receipt['Confirmation'] ?? [];
         $locator = $confirmation['Locator'] ?? [];
         $confirmationType = $confirmation['@type'] ?? 'ConfirmationHold';

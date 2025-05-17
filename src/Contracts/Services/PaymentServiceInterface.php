@@ -3,8 +3,9 @@
 namespace Redoy\FlyHub\Contracts\Services;
 
 
-use FlyHub\DTOs\Responses\PaymentResponseDTO;
+
 use Redoy\Flyhub\DTOs\Requests\PaymentRequestDTO;
+use Redoy\FlyHub\DTOs\Responses\PaymentResponseDTO;
 
 interface PaymentServiceInterface
 {

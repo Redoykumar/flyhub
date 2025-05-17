@@ -135,6 +135,7 @@ class BookingService implements BookingServiceInterface
     {
         return $this->client
             ->request('post', "/book/reservation/reservations/{$reservationId}")
+            ->withBody([])
             ->send();
     }
 

@@ -1,64 +1,105 @@
 <?php
 
-namespace FlyHub\DTOs\Responses;
+namespace Redoy\FlyHub\DTOs\Responses;
 
 class PaymentResponseDTO
 {
-    /**
-     * The unique identifier of the payment transaction.
-     *
-     * @var string|null
-     */
-    public $transactionId;
-
-    /**
-     * The status of the payment (e.g., success, failed, pending).
-     *
-     * @var string
-     */
+    public $id;
+    public $pnr;
     public $status;
+    public $travelers;
+    public $sequences;
+    public $price;
+    public $confirmation;
+    public $provider;
 
-    /**
-     * The paid amount.
-     *
-     * @var float
-     */
-    public $amount;
-
-    /**
-     * The currency of the paid amount (e.g., USD, EUR).
-     *
-     * @var string
-     */
-    public $currency;
-
-    /**
-     * PaymentResponseDTO constructor.
-     *
-     * @param array $data Associative array of payment response data.
-     * @throws \InvalidArgumentException If required fields are missing or invalid.
-     */
     public function __construct(array $data)
     {
-        // Set transactionId (optional, may be null for failed payments)
-        $this->transactionId = $data['transactionId'] ?? null;
+        $this->id = $data['id'] ?? null;
 
-        // Validate and set status
-        if (empty($data['status']) || !is_string($data['status'])) {
-            throw new \InvalidArgumentException('Payment status is required and must be a string.');
-        }
-        $this->status = $data['status'];
+        $this->pnr = $data['pnr'] ?? null;
 
-        // Validate and set amount
-        if (!isset($data['amount']) || !is_numeric($data['amount']) || $data['amount'] < 0) {
-            throw new \InvalidArgumentException('Amount is required and must be a non-negative number.');
+        $this->status = $data['status'] ?? null;
+        if (!is_string($this->status) && !is_null($this->status)) {
+            throw new \InvalidArgumentException('Status must be a string or null.');
         }
-        $this->amount = (float) $data['amount'];
 
-        // Validate and set currency
-        if (empty($data['currency']) || !is_string($data['currency'])) {
-            throw new \InvalidArgumentException('Currency is required and must be a string.');
+        $this->travelers = $data['travelers'] ?? [];
+        if (!is_array($this->travelers)) {
+            throw new \InvalidArgumentException('Travelers must be an array.');
         }
-        $this->currency = $data['currency'];
+
+        $this->sequences = $data['sequences'] ?? [];
+        if (!is_array($this->sequences)) {
+            throw new \InvalidArgumentException('Sequences must be an array.');
+        }
+
+        $this->price = $data['price'] ?? [];
+        if (!is_array($this->price)) {
+            throw new \InvalidArgumentException('Price must be an array.');
+        }
+
+        $this->confirmation = $data['confirmation'] ?? [];
+        if (!is_array($this->confirmation)) {
+            throw new \InvalidArgumentException('Confirmation must be an array.');
+        }
+
+        $this->provider = $data['provider'] ?? null;
+        if (!is_string($this->provider) && !is_null($this->provider)) {
+            throw new \InvalidArgumentException('Provider must be a string or null.');
+        }
+    }
+
+    public function getId(): ?string
+    {
+        return $this->id;
+    }
+
+    public function getPnr(): ?string
+    {
+        return $this->pnr;
+    }
+
+    public function getStatus(): ?string
+    {
+        return $this->status;
+    }
+
+    public function getTravelers(): array
+    {
+        return $this->travelers;
+    }
+
+    public function getSequences(): array
+    {
+        return $this->sequences;
+    }
+
+    public function getPrice(): array
+    {
+        return $this->price;
+    }
+
+    public function getConfirmation(): array
+    {
+        return $this->confirmation;
+    }
+
+    public function getProvider(): ?string
+    {
+        return $this->provider;
+    }
+    public function toArray(): array
+    {
+        return [
+            'id' => $this->id,
+            'pnr' => $this->pnr,
+            'status' => $this->status,
+            'travelers' => $this->travelers,
+            'sequences' => $this->sequences,
+            'price' => $this->price,
+            'confirmation' => $this->confirmation,
+            'provider' => $this->provider,
+        ];
     }
 }

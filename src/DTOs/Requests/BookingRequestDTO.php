@@ -15,6 +15,7 @@ class BookingRequestDTO
 
     public function __construct(array $data)
     {
+
         if (empty($data['offer_id']) || empty($data['search_id'])) {
             throw new \InvalidArgumentException('Both offer_id and search_id are required.');
         }

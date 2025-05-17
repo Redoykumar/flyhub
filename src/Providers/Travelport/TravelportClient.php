@@ -100,10 +100,14 @@ class TravelportClient
 
     public function send(): Response
     {
+
+        
         $url = "{$this->baseUrl}/{$this->endpoint}";
         $headers = $this->buildHeaders();
         $http = $this->buildHttpClient($headers);
 
+        // $response = Http::withHeaders($headers)->withBody()->post($url);
+        // dd($response->body());
         $this->logRequest($url, $headers);
 
         return $this->safeExecute(function () use ($http, $url) {
@@ -209,12 +213,18 @@ class TravelportClient
 
     private function executeRequest(\Illuminate\Http\Client\PendingRequest $http, string $url): Response
     {
+
         $body = $this->getRequestBody();
+        if (!empty($this->params)) {
+            $url .= (str_contains($url, '?') ? '&' : '?') . http_build_query($this->params);
+        }
         switch ($this->method) {
             case 'get':
                 return $http->get($url, $this->params);
             case 'post':
-                return $http->post($url, $body);
+                return $body === null
+                    ? $http->post($url) // ✅ Send no body if not needed
+                    : $http->post($url, empty($body)?null:$body);
             case 'put':
                 return $http->put($url, $body);
             case 'delete':
@@ -226,7 +236,7 @@ class TravelportClient
 
     private function getRequestBody(): ?array
     {
-        return is_array($this->body) && !empty($this->body) ? $this->body : null;
+        return $this->body;
     }
 
     private function checkCircuitBreaker(): void
