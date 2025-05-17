@@ -6,11 +6,16 @@ use Illuminate\Http\Request;
 use Redoy\FlyHub\Cache\PriceCache;
 use Redoy\FlyHub\Cache\SearchCache;
 use Redoy\FlyHub\Cache\OfferIdentifiersCache;
+
 use Redoy\FlyHub\DTOs\Requests\PriceRequestDTO;
 use Redoy\FlyHub\DTOs\Requests\SearchRequestDTO;
 use Redoy\FlyHub\DTOs\Requests\BookingRequestDTO;
+
+
+use Redoy\Flyhub\DTOs\Requests\PaymentRequestDTO;
 use Redoy\FlyHub\Core\Coordinators\SearchCoordinator;
 use Redoy\FlyHub\Core\Coordinators\BookingCoordinator;
+use Redoy\Flyhub\Core\Coordinators\PaymentCoordinator;
 use Redoy\FlyHub\Core\Coordinators\PricingCoordinator;
 
 
@@ -122,6 +127,24 @@ class FlyHubManager
         ]);
     }
 
+    public function pay($input)
+    {
+
+            $dto = $input instanceof PaymentRequestDTO
+                ? $input
+                : new PaymentRequestDTO(
+                    $input instanceof Request ? $input->all() : (is_array($input) ? $input : [])
+                );
+
+            $coordinator = new PaymentCoordinator();
+            $result = $coordinator->processPayment($dto);
+
+            return response()->json([
+                'status' => 'success',
+                'data' => $result->toArray(),
+            ]);
+
+    }
 
     public function getProviderClass()
     {

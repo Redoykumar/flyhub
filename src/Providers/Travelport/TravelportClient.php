@@ -7,6 +7,8 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Cache;
+use Redoy\Flyhub\Providers\Travelport\Traits\HandlesApiErrors;
+
 
 class CircuitBreakerOpenException extends RuntimeException
 {
@@ -14,6 +16,7 @@ class CircuitBreakerOpenException extends RuntimeException
 
 class TravelportClient
 {
+    use HandlesApiErrors;
     private const SUPPORTED_METHODS = ['get', 'post', 'put', 'delete'];
     private const REQUIRED_CONFIG_KEYS = ['username', 'password', 'client_id', 'client_secret', 'access_group'];
     private const TOKEN_CACHE_KEY = 'travelport_token';
@@ -97,29 +100,18 @@ class TravelportClient
 
     public function send(): Response
     {
-        try {
-            $this->checkCircuitBreaker();
+        $url = "{$this->baseUrl}/{$this->endpoint}";
+        $headers = $this->buildHeaders();
+        $http = $this->buildHttpClient($headers);
 
-            $url = "{$this->baseUrl}/{$this->endpoint}";
-            $headers = $this->buildHeaders();
-            $http = $this->buildHttpClient($headers);
+        $this->logRequest($url, $headers);
 
-            $this->logRequest($url, $headers);
-
+        return $this->safeExecute(function () use ($http, $url) {
             $response = $this->executeRequestWithRetries($http, $url);
-
             $this->updateCircuitBreaker($response->successful());
             $this->logResponse($url, $response);
-
             return $response;
-        } catch (CircuitBreakerOpenException $e) {
-            $this->logException($url, $e);
-            throw $e;
-        } catch (\Exception $e) {
-            $this->updateCircuitBreaker(false);
-            $this->logException($url, $e);
-            throw new RuntimeException("API request failed: {$e->getMessage()}", 0, $e);
-        }
+        });
     }
 
     private function validateConfig(array $config): void

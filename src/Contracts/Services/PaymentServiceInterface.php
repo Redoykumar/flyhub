@@ -1,9 +1,10 @@
 <?php
 
-namespace FlyHub\Contracts\Services;
+namespace Redoy\FlyHub\Contracts\Services;
 
-use FlyHub\DTOs\Requests\PaymentRequestDTO;
+
 use FlyHub\DTOs\Responses\PaymentResponseDTO;
+use Redoy\Flyhub\DTOs\Requests\PaymentRequestDTO;
 
 interface PaymentServiceInterface
 {

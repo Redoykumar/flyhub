@@ -29,6 +29,7 @@ class PriceTransformer
     }
     public function transform(): PriceResponseDTO
     {
+
         return new PriceResponseDTO($this->generateFlightOffers($this->responseData['OfferListResponse']['OfferID']));
     }
 
