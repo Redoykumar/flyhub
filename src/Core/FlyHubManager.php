@@ -57,12 +57,12 @@ class FlyHubManager
                 $input instanceof Request ? $input->all() : (is_array($input) ? $input : [])
             );
 
-        // Check cache
-        if ($this->searchCache->has($dto)) {
-            $cachedResults = $this->searchCache->get($dto);
-            $this->setResults($cachedResults['data'], $cachedResults['meta']);
-            return $this;
-        }
+        // // Check cache
+        // if ($this->searchCache->has($dto)) {
+        //     $cachedResults = $this->searchCache->get($dto);
+        //     $this->setResults($cachedResults['data'], $cachedResults['meta']);
+        //     return $this;
+        // }
 
         $coordinator = new SearchCoordinator($this);
         $searchResponse = $coordinator->search($dto)->get();

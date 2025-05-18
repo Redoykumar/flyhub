@@ -61,8 +61,8 @@ class SearchCoordinator
                     $searchService = new $searchServiceClass($client);
                     $providerResponse = $searchService->search($this->dto);
                     $providerResults = $providerResponse->data[0]['data'] ?? [];
-                    $results = array_merge($results, $providerResults);
                     $providerResults = $markupManager->applyMarkupToFlights($providerResults, $providerName);
+                    $results = array_merge($results, $providerResults);
                 }
 
                 foreach ($this->sorters as $sorter) {

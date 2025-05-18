@@ -57,6 +57,7 @@ class SearchService implements SearchServiceInterface
         $passengers = $request->getPassengers();
         $segments = $request->getSegments();
         $modifiers = $request->getModifiers();
+        $currency = config('flyhub.pricing.currency'); // Default to USD if not provided
 
         // Map passenger types
         $passengerCriteria = [];
