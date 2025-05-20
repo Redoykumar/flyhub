@@ -2,12 +2,13 @@
 
 namespace Redoy\FlyHub\DTOs\Requests;
 
+use Illuminate\Support\Facades\Validator;
+use Redoy\FlyHub\Cache\PriceCache;
 use Redoy\FlyHub\DTOs\Shared\PassengerDTO;
 
 class BookingRequestDTO
 {
-    public string $offerId;
-    public string $searchId;
+    public string $priceId;
     public ?string $offerRef = null;
     public array $passengers = [];
     public string $contactEmail;
@@ -15,49 +16,50 @@ class BookingRequestDTO
 
     public function __construct(array $data)
     {
+        $priceCache = new PriceCache();
 
-        if (empty($data['offer_id']) || empty($data['search_id'])) {
-            throw new \InvalidArgumentException('Both offer_id and search_id are required.');
+        $validator = Validator::make($data, [
+            'price_id' => [
+                'required',
+                'string',
+                fn($attr, $val, $fail) =>
+                $priceCache->has($val)
+                ?: $fail("Invalid or expired price ID. Please verify and try again."),
+            ],
+            'passengers' => ['required', 'array', 'min:1'],
+            'passengers.*.first_name' => 'required|string',
+            'passengers.*.last_name' => 'required|string',
+            'passengers.*.gender' => 'required|in:M,F',
+            'passengers.*.dob' => 'required|date',
+            'passengers.*.passport_number' => 'required|string',
+            'passengers.*.passport_expiry' => 'required|date',
+            'passengers.*.nationality' => 'required|string|size:2',
+            'passengers.*.passport_issued_country' => 'required|string|size:2',
+            'passengers.*.type' => 'required|in:ADT,CHD,INF',
+            'contact.email' => 'required|email',
+            'contact.phone' => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            throw new \InvalidArgumentException('Validation failed: ' . implode(' ', $validator->errors()->all()));
         }
 
-        $this->offerId = $data['offer_id'];
-        $this->searchId = $data['search_id'];
-
-        if (empty($data['passengers']) || !is_array($data['passengers'])) {
-            throw new \InvalidArgumentException('Passengers are required.');
-        }
+        $this->priceId = $data['price_id'];
 
         foreach ($data['passengers'] as $passenger) {
             $this->passengers[] = new PassengerDTO($passenger);
-        }
-
-        if (empty($data['contact']['email']) || empty($data['contact']['phone'])) {
-            throw new \InvalidArgumentException('Contact email and phone are required.');
         }
 
         $this->contactEmail = $data['contact']['email'];
         $this->contactPhone = $data['contact']['phone'];
     }
 
-    /**
-     * Get the search ID.
-     */
-    public function getSearchId(): string
+    public function getPriceId(): string
     {
-        return $this->searchId;
+        return $this->priceId;
     }
 
     /**
-     * Get the offer ID.
-     */
-    public function getOfferId(): string
-    {
-        return $this->offerId;
-    }
-
-    /**
-     * Get the passengers.
-     *
      * @return PassengerDTO[]
      */
     public function getPassengers(): array
@@ -65,17 +67,11 @@ class BookingRequestDTO
         return $this->passengers;
     }
 
-    /**
-     * Get the contact email.
-     */
     public function getContactEmail(): string
     {
         return $this->contactEmail;
     }
 
-    /**
-     * Get the contact phone.
-     */
     public function getContactPhone(): string
     {
         return $this->contactPhone;

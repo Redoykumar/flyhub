@@ -10,7 +10,7 @@ class PaymentRequestDTO
         'booking_id' => ['required', 'string', 'max:255'],
         'payment_method' => ['required', 'string', 'in:card,token'],
         'payment_descriptions' => ['nullable', 'string', 'max:500'],
-        'pnr' => ['nullable', 'string', 'max:50'],
+      
     ];
 
     public const VALIDATION_MESSAGES = [
@@ -19,13 +19,11 @@ class PaymentRequestDTO
         'payment_method.required' => 'A payment method is required.',
         'payment_method.in' => 'The payment method must be either "card" or "token".',
         'payment_descriptions.max' => 'The payment description must not exceed 500 characters.',
-        'pnr.max' => 'The PNR must not exceed 50 characters.',
     ];
 
     protected string $booking_id;
     protected string $payment_method;
     protected ?string $payment_descriptions;
-    protected ?string $pnr;
 
     /**
      * @param array<string, mixed> $data
@@ -43,9 +41,6 @@ class PaymentRequestDTO
             : 'card';
         $this->payment_descriptions = isset($data['payment_descriptions']) && is_string($data['payment_descriptions'])
             ? $data['payment_descriptions']
-            : null;
-        $this->pnr = isset($data['pnr']) && is_string($data['pnr'])
-            ? $data['pnr']
             : null;
     }
 
@@ -77,7 +72,6 @@ class PaymentRequestDTO
             'booking_id' => $this->booking_id,
             'payment_method' => $this->payment_method,
             'payment_descriptions' => $this->payment_descriptions,
-            'pnr' => $this->pnr,
         ];
     }
 
@@ -96,8 +90,4 @@ class PaymentRequestDTO
         return $this->payment_descriptions;
     }
 
-    public function getPnr(): ?string
-    {
-        return $this->pnr;
-    }
 }

@@ -37,12 +37,11 @@ class PaymentService implements PaymentServiceInterface
         ];
     }
 
-    public function processPayment(PaymentRequestDTO $request): PaymentResponseDTO
+    public function processPayment(PaymentRequestDTO $request, array $cache): PaymentResponseDTO
     {
-
         // Step 1: Build reservation from existing PNR
-        $reservation = $this->buildReservationFromLocator($request->getPnr());
-        $this->setReservationData($reservation);
+        $reservation = $this->buildReservationFromLocator($cache['pnr']);
+        $this->setReservationData($reservation, $cache['price']);
         // Step 2: Add form of payment (e.g., credit card, cash)
         $formOfPaymentAdded = $this->addFormOfPayment($this->reservationWorkbenchId, $this->formOfPaymentBody);
         $this->addFOPIdentifierValue = $formOfPaymentAdded;
@@ -50,7 +49,7 @@ class PaymentService implements PaymentServiceInterface
 
         // Step 3: Add payment offer to reservation (e.g., accept price, taxes)
         $paymentOfferAdded = $this->addPaymentOffer($this->reservationWorkbenchId, $this->buildPaymentPayload());
-  
+
 
         // Step 4: Finalize the reservation (issue ticket, commit transaction)
         $finalized = $this->finalizeReservation($this->reservationWorkbenchId);
@@ -410,7 +409,7 @@ class PaymentService implements PaymentServiceInterface
 
 
         // Step 6: Transform API response into standardized DTO response
-        $paymentResponse = (new PaymentTransformer($finalResponse, $request))->transform() ;
+        $paymentResponse = (new PaymentTransformer($finalResponse, $request))->transform();
         return $paymentResponse;
     }
 
@@ -447,7 +446,7 @@ class PaymentService implements PaymentServiceInterface
     /**
      * Step 3 - Attach a payment offer that links cost elements (fare, taxes, etc.)
      */
-    private function addPaymentOffer(string $reservationId, array $payload):array
+    private function addPaymentOffer(string $reservationId, array $payload): array
     {
         $response = $this->client
             ->request('post', "/paymentoffer/reservationworkbench/{$reservationId}/payments")
@@ -479,7 +478,7 @@ class PaymentService implements PaymentServiceInterface
             ->withBody([])
             ->send();
 
-        return  $response->json();
+        return $response->json();
     }
 
     private function getReviewReservationSummary(string $PNR): ?array
@@ -494,13 +493,13 @@ class PaymentService implements PaymentServiceInterface
 
 
 
-    private function setReservationData(array $data): void
+    private function setReservationData(array $data, array $cache): void
     {
         $reservation = $data['ReservationResponse']['Reservation'];
 
         $this->reservationWorkbenchId = $data['ReservationResponse']['Identifier']['value'] ?? '';
-        $this->totalPrice = '12229.00'; // Placeholder if not available in response
-        $this->currencyCode = 'BDT'; // Default or set dynamically if present
+        $this->totalPrice = $cache['total_price']; // Placeholder if not available in response
+        $this->currencyCode = $cache['currency']; // Default or set dynamically if present
 
         $this->addFOPIdentifierValue = $reservation['Receipt'][0]['Identifier']['value'] ?? '';
 

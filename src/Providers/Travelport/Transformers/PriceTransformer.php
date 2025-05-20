@@ -1,7 +1,7 @@
 <?php
 namespace Redoy\FlyHub\Providers\Travelport\Transformers;
 
-use Ramsey\Uuid\Uuid;
+use Symfony\Component\Uid\Ulid;
 use Redoy\FlyHub\Helpers\SimplifyNumber;
 use Redoy\FlyHub\DTOs\Responses\PriceResponseDTO;
 
@@ -62,7 +62,7 @@ class PriceTransformer
      */
     private function generateUniqueId(): string
     {
-        return Uuid::uuid4()->toString();
+        return 'price:' . Ulid::generate();
     }
 
     private function extractPrice(array $priceData): ?array

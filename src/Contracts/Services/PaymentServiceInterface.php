@@ -16,5 +16,5 @@ interface PaymentServiceInterface
      * @return PaymentResponseDTO The payment response data.
      * @throws \FlyHub\Exceptions\FlyHubException If the payment process fails.
      */
-    public function processPayment(PaymentRequestDTO $request): PaymentResponseDTO;
+    public function processPayment(PaymentRequestDTO $request, array $cache): PaymentResponseDTO;
 }

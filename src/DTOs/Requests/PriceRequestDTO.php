@@ -2,7 +2,9 @@
 
 namespace Redoy\FlyHub\DTOs\Requests;
 
+
 use Illuminate\Support\Facades\Validator;
+use Redoy\FlyHub\Cache\OfferIdentifiersCache;
 
 class PriceRequestDTO
 {
@@ -27,17 +29,37 @@ class PriceRequestDTO
      *
      * @param array $data
      */
+
     private function validate(array $data): void
     {
+        $offerCache = new OfferIdentifiersCache();
+
         $validator = Validator::make($data, [
-            'search_id' => ['required', 'string'],
-            'offer_id' => ['required', 'string'],
+            'search_id' => [
+                'required',
+                'string',
+                fn($attr, $val, $fail) =>
+                $offerCache->hasSearch($val) ?: $fail("No offers found for the provided search ID. Please verify and try again.")
+            ],
+            'offer_id' => [
+                'required',
+                'string',
+                function ($attr, $val, $fail) use ($data, $offerCache) {
+                    if (empty($data['search_id']) || !$offerCache->hasOffer($data['search_id'], $val)) {
+                        $fail("The offer ID '{$val}' is not valid for the given search ID. Please check and try again.");
+                    }
+                }
+            ],
         ]);
 
         if ($validator->fails()) {
-            throw new \Exception('Validation failed: ' . implode(', ', $validator->errors()->all()));
+            throw new \Exception('Validation failed: ' . implode(' ', $validator->errors()->all()));
         }
     }
+
+
+
+
 
     /**
      * Get the search ID.

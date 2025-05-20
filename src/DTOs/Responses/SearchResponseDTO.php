@@ -8,6 +8,7 @@ class SearchResponseDTO
     public $data;
     public $meta;
     public $errors;
+    public $cache;
 
     // Constructor sets response data
     public function __construct(array $data,$meta=null)
@@ -16,6 +17,7 @@ class SearchResponseDTO
         $this->data = $data;
         $this->meta = [];
         $this->errors = [];
+        $this->cache = [];
     }
 
     // Convert to array for JSON response
@@ -25,7 +27,17 @@ class SearchResponseDTO
             'status' => $this->status,
             'data' => $this->data,
             'meta' => $this->meta,
-            'errors' => $this->errors
+            'errors' => $this->errors,
         ];
+    }
+
+    public function setCache($cache)
+    {
+        $this->cache = $cache;
+    }
+
+    public function getCache()
+    {
+        return $this->cache;
     }
 }

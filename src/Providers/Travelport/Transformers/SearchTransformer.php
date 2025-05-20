@@ -2,7 +2,8 @@
 
 namespace Redoy\FlyHub\Providers\Travelport\Transformers;
 
-use Ramsey\Uuid\Uuid;
+
+use Symfony\Component\Uid\Ulid;
 use Redoy\FlyHub\Helpers\SimplifyNumber;
 use Redoy\FlyHub\Cache\OfferIdentifiersCache;
 
@@ -125,7 +126,7 @@ class SearchTransformer
      */
     private function generateUniqueId(): string
     {
-        return Uuid::uuid4()->toString();
+        return 'offer:' . Ulid::generate();
     }
 
     /**

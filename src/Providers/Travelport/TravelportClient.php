@@ -162,6 +162,7 @@ class TravelportClient
             $defaultHeaders = [
                 'Accept' => 'application/json',
                 'Content-Type' => 'application/json',
+                'Accept-Encoding' => 'gzip, deflate', // Add Accept-Encoding header
                 'X-API-Version' => '11',
             ];
         }

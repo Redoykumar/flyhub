@@ -12,6 +12,7 @@ class BookingResponseDTO
     public array $price;
     public array $confirmation;
     public string $provider;
+    private $cache = null;
 
     public function __construct(array $data)
     {
@@ -30,5 +31,56 @@ class BookingResponseDTO
         ];
         $this->confirmation = $data['confirmation'] ?? [];
         $this->provider = $data['provider'] ?? 'unknown';
+        $this->cache = $data['storeCache'] ?? 'unknown';
     }
+
+    public function getId(): ?string
+    {
+        return $this->id;
+    }
+
+    public function getPnr(): ?string
+    {
+        return $this->pnr;
+    }
+
+    public function getStatus(): string
+    {
+        return $this->status;
+    }
+
+    public function getTravelers(): array
+    {
+        return $this->travelers;
+    }
+
+    public function getSequences(): array
+    {
+        return $this->sequences;
+    }
+
+    public function getPrice(): array
+    {
+        return $this->price;
+    }
+
+    public function getConfirmation(): array
+    {
+        return $this->confirmation;
+    }
+
+    public function getProvider(): string
+    {
+        return $this->provider;
+    }
+
+    public function setCache($value): void
+    {
+        $this->cache = $value;
+    }
+
+    public function getCache()
+    {
+        return $this->cache;
+    } 
 }

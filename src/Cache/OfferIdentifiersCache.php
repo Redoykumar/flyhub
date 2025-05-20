@@ -8,31 +8,13 @@ use Redoy\FlyHub\Helpers\CacheKeyGenerator;
 
 class OfferIdentifiersCache
 {
-    /**
-     * Default TTL for cache entries in minutes.
-     *
-     * @var int
-     */
     protected $defaultTtlMinutes;
 
-    /**
-     * Constructor to initialize the cache with a default TTL.
-     *
-     * @param int|null $defaultTtlMinutes
-     */
     public function __construct(?int $defaultTtlMinutes = null)
     {
         $this->defaultTtlMinutes = $defaultTtlMinutes ?? config('flyhub.cache.offer_identifiers_ttl', 300);
     }
 
-    /**
-     * Store offer identifiers in cache for a given search ID.
-     *
-     * @param string $searchId
-     * @param array $offerIdentifiers
-     * @param int|null $ttlMinutes
-     * @return void
-     */
     public function store(string $searchId, array $offerIdentifiers, ?int $ttlMinutes = null): void
     {
         $cacheKey = CacheKeyGenerator::generate($searchId, 'offer_identifiers');
@@ -40,39 +22,40 @@ class OfferIdentifiersCache
         Cache::put($cacheKey, $offerIdentifiers, now()->addMinutes($ttl));
     }
 
-    /**
-     * Retrieve offer identifiers from cache for a given search ID.
-     *
-     * @param string $searchId
-     * @return array|null
-     */
     public function get(string $searchId): ?array
     {
         $cacheKey = CacheKeyGenerator::generate($searchId, 'offer_identifiers');
         return Cache::get($cacheKey);
     }
 
-    /**
-     * Check if offer identifiers exist in cache for a given search ID.
-     *
-     * @param string $searchId
-     * @return bool
-     */
+    // Original has() checks if offers exist for searchId
     public function has(string $searchId): bool
     {
         $cacheKey = CacheKeyGenerator::generate($searchId, 'offer_identifiers');
         return Cache::has($cacheKey);
     }
 
-    /**
-     * Remove offer identifiers from cache for a given search ID.
-     *
-     * @param string $searchId
-     * @return bool
-     */
     public function forget(string $searchId): bool
     {
         $cacheKey = CacheKeyGenerator::generate($searchId, 'offer_identifiers');
         return Cache::forget($cacheKey);
+    }
+
+    /**
+     * Check if offer identifiers exist in cache for a given search ID.
+     */
+    public function hasSearch(string $searchId): bool
+    {
+        return $this->has($searchId);
+    }
+
+    /**
+     * Check if a specific offer ID exists in cache for a given search ID.
+     */
+    public function hasOffer(string $searchId, string $offerId): bool
+    {
+        $offerIdentifiers = $this->get($searchId);
+        return !empty($offerIdentifiers[$offerId]);
+
     }
 }

@@ -2,9 +2,10 @@
 namespace Redoy\Flyhub\Core\Coordinators;
 
 
+use Illuminate\Support\Facades\Log;
+use Redoy\FlyHub\Cache\BookingCache;
 use Redoy\Flyhub\DTOs\Requests\PaymentRequestDTO;
 use Redoy\Flyhub\DTOs\Responses\PaymentResponseDTO;
-use Illuminate\Support\Facades\Log;
 
 class PaymentCoordinator
 {
@@ -12,15 +13,11 @@ class PaymentCoordinator
 
     public function processPayment(PaymentRequestDTO $dto): ?PaymentResponseDTO
     {
-;
-
-        $offerData['provider'] = 'travelport';
-        if (!isset($offerData['provider'])) {
-            throw new \Exception("Provider class not defined in offer data for offer ID .");
-        }
+        $bookingCache = new BookingCache();
+        $offerData = $bookingCache->get($dto->getBookingId());
         $providerConfig = config("flyhub.providers.{$offerData['provider']}", null);
         $client = new $providerConfig['client']($providerConfig);
         $bookService = new $providerConfig['payment']($client);
-        return $bookService->processPayment($dto);
+        return $bookService->processPayment($dto, $offerData);
     }
 }

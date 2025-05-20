@@ -1,12 +1,13 @@
 <?php
 namespace Redoy\FlyHub\Providers\Travelport\Transformers;
 
+use Carbon\Carbon;
 use Ramsey\Uuid\Uuid;
+use Symfony\Component\Uid\Ulid;
 use Illuminate\Support\Facades\Log;
 use Redoy\FlyHub\Helpers\SimplifyNumber;
 use Redoy\FlyHub\DTOs\Requests\BookingRequestDTO;
 use Redoy\FlyHub\DTOs\Responses\BookingResponseDTO;
-use Carbon\Carbon;
 
 class BookingTransformer
 {
@@ -16,6 +17,7 @@ class BookingTransformer
 
     public function __construct(array $responseData, BookingRequestDTO $request, array $cache)
     {
+
         $this->responseData = $responseData;
         $this->request = $request;
         $this->cache = $cache;
@@ -31,22 +33,25 @@ class BookingTransformer
             ]);
             throw new \RuntimeException('Invalid booking response: Missing Reservation');
         }
-
+        $id = $this->extractId($reservation);
+        $pnr = $this->extractLocatorCode($reservation);
+        $price = $this->extractPrice($reservation['Offer'][0]);
         return new BookingResponseDTO([
-            'id' => $this->extractId($reservation),
-            'pnr' => $this->extractLocatorCode($reservation),
+            'id' => $id,
+            'pnr' => $pnr,
             'status' => $this->extractStatus($reservation),
             'travelers' => $this->extractTravelers($reservation['Traveler'] ?? []),
             'sequences' => $this->extractSequences($reservation['Offer'][0] ?? [], $this->cache),
-            'price' => $this->extractPrice($this->cache),
+            'price' => $price,
             'confirmation' => $this->extractConfirmation(end($reservation['Receipt']) ?? []),
             'provider' => 'travelport',
+            'storeCache' => $this->storeBookingCache([$id => ['provider' => 'travelport', 'pnr' => $pnr, 'price' => $price]]),
         ]);
     }
 
     private function extractId(array $reservation): ?string
     {
-        return $reservation['Identifier']['value'] ?? null;
+        return 'booking:' . Ulid::generate();
     }
 
     private function extractLocatorCode(array $reservation, int $version = 6): ?string
@@ -252,43 +257,55 @@ class BookingTransformer
 
     private function extractPrice(array $cache): array
     {
-        $price = $cache['price'] ?? [
-            'currency' => 'USD',
-            'base' => '0.00',
-            'total_taxes' => '0.00',
-            'total_fees' => '0.00',
-            'total_price' => '0.00',
-            'price_per_passenger' => [],
-        ];
+        $price = $cache['Price'] ?? null;
 
-        $pricePerPassenger = [];
-        foreach ($price['price_per_passenger'] ?? [] as $type => $data) {
-            $pricePerPassenger[] = [
-                'type' => $type,
-                'quantity' => $data['quantity'] ?? 1,
-                'base' => $data['base'] ?? '0.00',
-                'taxes' => $data['taxes'] ?? '0.00',
-                'fees' => $data['fees'] ?? '0.00',
-                'total' => $data['total'] ?? '0.00',
-                'tax_breakdown' => array_map(function ($code, $tax) {
-                    return [
-                        'code' => $code,
-                        'description' => $tax['description'] ?? 'Unknown',
-                        'amount' => $tax['amount'] ?? '0.00',
-                    ];
-                }, array_keys($data['tax_breakdown'] ?? []), $data['tax_breakdown'] ?? []),
+        if (!$price) {
+            return [
+                'currency' => 'USD',
+                'base' => '0.00',
+                'total_taxes' => '0.00',
+                'total_fees' => '0.00',
+                'total_price' => '0.00',
+                'price_per_passenger' => [],
             ];
         }
 
+        $currency = $price['CurrencyCode'][0] ?? 'USD';
+        $base = number_format((float) ($price['Base'] ?? 0), 2, '.', '');
+        $taxes = number_format((float) ($price['TotalTaxes'] ?? 0), 2, '.', '');
+        $fees = number_format((float) ($price['TotalFees'] ?? 0), 2, '.', '');
+        $total = number_format((float) ($price['TotalPrice'] ?? 0), 2, '.', '');
+
+        $pricePerPassenger = [];
+
+        foreach ($price['PriceBreakdown'] ?? [] as $item) {
+            $type = $item['requestedPassengerType'] ?? 'ADT';
+            $quantity = $item['quantity'] ?? 1;
+            $filedAmount = $item['FiledAmount'] ?? [];
+
+            $passengerPrice = [
+                'type' => $type,
+                'quantity' => $quantity,
+                'base' => number_format((float) ($filedAmount['value'] ?? 0), 2, '.', ''),
+                'taxes' => $taxes, // assuming uniform tax across all
+                'fees' => $fees,
+                'total' => $total,
+                'tax_breakdown' => [], // Not available in provided data
+            ];
+
+            $pricePerPassenger[] = $passengerPrice;
+        }
+
         return [
-            'currency' => $price['currency'] ?? 'USD',
-            'base' => $price['base'] ?? '0.00',
-            'total_taxes' => $price['total_taxes'] ?? '0.00',
-            'total_fees' => $price['total_fees'] ?? '0.00',
-            'total_price' => $price['total_price'] ?? '0.00',
+            'currency' => $currency,
+            'base' => $base,
+            'total_taxes' => $taxes,
+            'total_fees' => $fees,
+            'total_price' => $total,
             'price_per_passenger' => $pricePerPassenger,
         ];
     }
+
 
     private function extractConfirmation(array $receipt): array
     {
@@ -317,5 +334,10 @@ class BookingTransformer
             'creation_date' => $creationDate,
             'expires_at' => $expiresAt,
         ];
+    }
+    private function storeBookingCache(array $data): array
+    {
+        return $data;
+
     }
 }
