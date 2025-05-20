@@ -209,7 +209,7 @@ class SearchTransformer
                 'total_duration' => SimplifyNumber::convertDurationToMinutes($offer['product']['totalDuration'] ?? '0'),
                 'service_class' => $this->extractPassengerFlights($offer['product']['PassengerFlight'] ?? []),
                 'flight_segments' => $this->getFlightSegments($offer['product']['FlightSegment'] ?? []),
-                'stops' => count($offer['product']['FlightSegment'] ?? []),
+                'stops' => count($offer['product']['FlightSegment'] ?? [])-1,
             ];
         }
         return $sequences;
@@ -319,7 +319,9 @@ class SearchTransformer
             if (isset($flightDetails)) {
                 $flightSegments[$key] = [
                     'carrier' => $flightDetails['carrier'] ?? 'Unknown',
-                    'airline_imageUrl' => 'https://images.kiwi.com/airlines/64/' . ($flightDetails['carrier'] ?? 'Unknown') . '.png',
+                    'airline_code' => $flightDetails['operatingCarrier'] ?? 'Unknown',
+                    'airline_name' => $flightDetails['operatingCarrierName'] ?? 'Unknown',
+                    'airline_imageUrl' => 'https://images.kiwi.com/airlines/64/' . ($flightDetails['operatingCarrier'] ?? 'Unknown') . '.png',
                     'flight_number' => $flightDetails['number'] ?? 'Unknown',
                     'equipment' => $flightDetails['equipment'] ?? 'Unknown',
                     'distance' => $flightDetails['distance'] ?? 0,

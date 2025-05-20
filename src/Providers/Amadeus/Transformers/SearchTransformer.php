@@ -11,6 +11,7 @@ class SearchTransformer
 
     public function __construct(array $responseData, $request)
     {
+
         $this->responseData = $responseData;
         $this->request = $request;
     }
@@ -169,7 +170,7 @@ class SearchTransformer
                 'total_duration' => SimplifyNumber::convertDurationToMinutes($offer['duration'] ?? '0'),
                 'service_class' => $this->extractPassengerFlights($combination['travelerPricings'] ?? []),
                 'flight_segments' => $this->getFlightSegments($offer['segments'] ?? []),
-                'stops' => count($offer['segments'] ?? []),
+                'stops' => count($offer['segments'] ?? [])-1,
             ];
         }
         return $sequences;
@@ -289,6 +290,8 @@ class SearchTransformer
             if (isset($segment)) {
                 $flightSegments[$key] = [
                     'carrier' => $segment['carrierCode'] ?? 'Unknown',
+                    'airline_code' => $segment['carrierCode'] ?? 'Unknown',
+                    'airline_name' => $this->responseData['dictionaries']['carriers'][$segment['carrierCode']] ?? 'Unknown',
                     'airline_imageUrl' => 'https://images.kiwi.com/airlines/64/' . ($segment['carrierCode'] ?? 'Unknown') . '.png',
                     'flight_number' => $segment['number'] ?? 'Unknown',
                     'equipment' => $segment['aircraft']['code'] ?? 'Unknown',
