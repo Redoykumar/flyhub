@@ -140,17 +140,10 @@ class FlyHubManager
         $coordinator = new PaymentCoordinator();
         $result = $coordinator->processPayment($dto);
 
-<<<<<<< HEAD
-        return response()->json([
-            'status' => 'success',
-            'data' => $result->toArray(),
-        ]);
-=======
         return [
             'status' => 'success',
             'data' => $result->toArray(),
         ];
->>>>>>> 9ff9ec576be15fbebc699851a0a4ce92f90b78c3
 
     }
 
