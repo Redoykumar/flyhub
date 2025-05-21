@@ -1,9 +1,17 @@
 [
   {
     "trip_type": "one-way",
-    "passengers": { "adults": 1, "children": 0, "infants": 0 },
+    "passengers": {
+      "adults": 1,
+      "children": 0,
+      "infants": 0
+    },
     "segments": [
-      { "date": "2025-06-20", "from": "DAC", "to": "DXB" }
+      {
+        "date": "2025-06-20",
+        "from": "DAC",
+        "to": "DXB"
+      }
     ],
     "passenger_details": [
       {
@@ -21,10 +29,22 @@
   },
   {
     "trip_type": "round-trip",
-    "passengers": { "adults": 2, "children": 1, "infants": 0 },
+    "passengers": {
+      "adults": 2,
+      "children": 1,
+      "infants": 0
+    },
     "segments": [
-      { "date": "2025-06-15", "from": "JFK", "to": "LAX" },
-      { "date": "2025-06-20", "from": "LAX", "to": "JFK" }
+      {
+        "date": "2025-06-15",
+        "from": "JFK",
+        "to": "LAX"
+      },
+      {
+        "date": "2025-06-20",
+        "from": "LAX",
+        "to": "JFK"
+      }
     ],
     "passenger_details": [
       {
