@@ -14,6 +14,7 @@ class SearchService implements SearchServiceInterface
 
     public function __construct(AmadeusClient $client)
     {
+        
         $this->client = $client;
     }
 

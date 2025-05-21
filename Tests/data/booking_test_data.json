@@ -1,0 +1,65 @@
+[
+  {
+    "trip_type": "one-way",
+    "passengers": { "adults": 1, "children": 0, "infants": 0 },
+    "segments": [
+      { "date": "2025-06-20", "from": "DAC", "to": "DXB" }
+    ],
+    "passenger_details": [
+      {
+        "first_name": "John",
+        "last_name": "Doe",
+        "gender": "M",
+        "dob": "1990-01-01",
+        "passport_number": "A12345678",
+        "passport_expiry": "2030-12-31",
+        "nationality": "BD",
+        "passport_issued_country": "BD",
+        "type": "ADT"
+      }
+    ]
+  },
+  {
+    "trip_type": "round-trip",
+    "passengers": { "adults": 2, "children": 1, "infants": 0 },
+    "segments": [
+      { "date": "2025-06-15", "from": "JFK", "to": "LAX" },
+      { "date": "2025-06-20", "from": "LAX", "to": "JFK" }
+    ],
+    "passenger_details": [
+      {
+        "first_name": "Alice",
+        "last_name": "Smith",
+        "gender": "F",
+        "dob": "1988-05-12",
+        "passport_number": "B98765432",
+        "passport_expiry": "2031-11-30",
+        "nationality": "US",
+        "passport_issued_country": "US",
+        "type": "ADT"
+      },
+      {
+        "first_name": "Bob",
+        "last_name": "Smith",
+        "gender": "M",
+        "dob": "1985-08-25",
+        "passport_number": "B98765433",
+        "passport_expiry": "2031-11-30",
+        "nationality": "US",
+        "passport_issued_country": "US",
+        "type": "ADT"
+      },
+      {
+        "first_name": "Charlie",
+        "last_name": "Smith",
+        "gender": "M",
+        "dob": "2015-06-20",
+        "passport_number": "B98765434",
+        "passport_expiry": "2031-11-30",
+        "nationality": "US",
+        "passport_issued_country": "US",
+        "type": "CHD"
+      }
+    ]
+  }
+]
