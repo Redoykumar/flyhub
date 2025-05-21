@@ -121,10 +121,10 @@ class FlyHubManager
         $result = $coordinator->book($dto);
 
         // Step 4: Return or format response
-        return response()->json([
+        return [
             'status' => 'success',
             'data' => $result->toArray(),
-        ]);
+        ];
     }
 
     public function pay($input)
