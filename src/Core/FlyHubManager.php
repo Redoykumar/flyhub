@@ -114,7 +114,7 @@ class FlyHubManager
                 $input instanceof Request ? $input->all() : (is_array($input) ? $input : [])
             );
 
-//comment 
+        //comment 
         // Step 2: Pass DTO to BookingCoordinator
         $coordinator = new BookingCoordinator();
 
