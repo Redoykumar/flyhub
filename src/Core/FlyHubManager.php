@@ -5,13 +5,14 @@ namespace Redoy\FlyHub\Core;
 use Illuminate\Http\Request;
 use Redoy\FlyHub\Cache\PriceCache;
 use Redoy\FlyHub\Cache\SearchCache;
-use Redoy\FlyHub\Cache\OfferIdentifiersCache;
+use Redoy\FlyHub\Cache\BookingCache;
 
+use Redoy\FlyHub\Cache\OfferIdentifiersCache;
 use Redoy\FlyHub\DTOs\Requests\PriceRequestDTO;
 use Redoy\FlyHub\DTOs\Requests\SearchRequestDTO;
+
+
 use Redoy\FlyHub\DTOs\Requests\BookingRequestDTO;
-
-
 use Redoy\Flyhub\DTOs\Requests\PaymentRequestDTO;
 use Redoy\FlyHub\Core\Coordinators\SearchCoordinator;
 use Redoy\FlyHub\Core\Coordinators\BookingCoordinator;
@@ -104,6 +105,11 @@ class FlyHubManager
         $this->setResults($priceResponse['offers'], $priceResponse['meta']);
         return $this;
     }
+    public function bookAmount($bookingId)
+    {
+        return (new BookingCache())->get($bookingId);
+    }
+
 
     public function book($input)
     {
