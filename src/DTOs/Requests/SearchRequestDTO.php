@@ -27,6 +27,7 @@ class SearchRequestDTO
      */
     public function __construct(array $data)
     {
+
         $this->validate($data);
         $this->setProperties($data);
     }
@@ -40,7 +41,7 @@ class SearchRequestDTO
     private function validate(array $data): void
     {
         $validator = Validator::make($data, [
-            'trip_type' => ['required', 'in:one-way,round-trip'],
+            'trip_type' => ['required', 'in:one-way,round-trip,multi-city'],
             'passengers' => ['required', 'array'],
             'passengers.adults' => ['required', 'integer', 'min:1'],
             'passengers.children' => ['integer', 'min:0'],
