@@ -22,7 +22,6 @@ class PricingCoordinator
         $offerId = $dto->getOfferId();
         $offers = $this->offerIdentifiersCache->get($searchId);
         $offerData = $offers[$offerId];
-    
         $providerConfig = config("flyhub.providers.{$offerData['provider']}", null);
         $client = new $providerConfig['client']($providerConfig);
         $priceService = new $providerConfig['price']($client);
