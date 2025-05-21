@@ -32,6 +32,7 @@ class BookingResponseDTO
         $this->confirmation = $data['confirmation'] ?? [];
         $this->provider = $data['provider'] ?? 'unknown';
         $this->cache = $data['storeCache'] ?? 'unknown';
+        $this->passengers = $data['passengers'] ?? [];
     }
 
     public function getId(): ?string
@@ -82,5 +83,20 @@ class BookingResponseDTO
     public function getCache()
     {
         return $this->cache;
-    } 
+    }
+
+    public function toArray(): array
+    {
+        return [
+            'id' => $this->id,
+            'pnr' => $this->pnr,
+            'status' => $this->status,
+            'passengers' => $this->passengers,
+            'travelers' => $this->travelers,
+            'sequences' => $this->sequences,
+            'price' => $this->price,
+            'confirmation' => $this->confirmation,
+            'provider' => $this->provider           
+        ];
+    }
 }

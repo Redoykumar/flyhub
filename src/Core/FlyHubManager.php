@@ -123,7 +123,7 @@ class FlyHubManager
         // Step 4: Return or format response
         return response()->json([
             'status' => 'success',
-            'data' => $result,
+            'data' => $result->toArray(),
         ]);
     }
 
