@@ -6,7 +6,7 @@ class BookingResponseDTO
     public ?string $id;
     public ?string $pnr;
     public string $status;
-    public array $passengers;
+
     public array $travelers;
     public array $sequences;
     public array $price;
@@ -82,5 +82,20 @@ class BookingResponseDTO
     public function getCache()
     {
         return $this->cache;
-    } 
+    }
+    public function toArray(): array
+    {
+        return [
+            'id' => $this->id,
+            'pnr' => $this->pnr,
+            'status' => $this->status,
+            'travelers' => $this->travelers,
+            'sequences' => $this->sequences,
+            'price' => $this->price,
+            'confirmation' => $this->confirmation,
+            'provider' => $this->provider
+        ];
+    }
+
+
 }
