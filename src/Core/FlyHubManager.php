@@ -66,14 +66,14 @@ class FlyHubManager
 
         $coordinator = new SearchCoordinator($this);
         $searchResponse = $coordinator->search($dto)->get();
-        $searchResponse=array_merge($searchResponse,['meta'=> $this->generateMeta($dto)]);
+        $searchResponse = array_merge($searchResponse, ['meta' => $this->generateMeta($dto)]);
         // Cache the results
         $this->searchCache->put($dto, $searchResponse);
 
         $this->setResults($searchResponse['data'], $searchResponse['meta']);
         return $this;
     }
-    protected function generateMeta(SearchRequestDTO $dto ): array
+    protected function generateMeta(SearchRequestDTO $dto): array
     {
         return [
             'search_id' => $dto->getSearchId(),
@@ -130,19 +130,19 @@ class FlyHubManager
     public function pay($input)
     {
 
-            $dto = $input instanceof PaymentRequestDTO
-                ? $input
-                : new PaymentRequestDTO(
-                    $input instanceof Request ? $input->all() : (is_array($input) ? $input : [])
-                );
+        $dto = $input instanceof PaymentRequestDTO
+            ? $input
+            : new PaymentRequestDTO(
+                $input instanceof Request ? $input->all() : (is_array($input) ? $input : [])
+            );
 
-            $coordinator = new PaymentCoordinator();
-            $result = $coordinator->processPayment($dto);
+        $coordinator = new PaymentCoordinator();
+        $result = $coordinator->processPayment($dto);
 
-            return response()->json([
-                'status' => 'success',
-                'data' => $result->toArray(),
-            ]);
+        return [
+            'status' => 'success',
+            'data' => $result->toArray(),
+        ];
 
     }
 
